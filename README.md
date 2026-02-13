@@ -59,7 +59,7 @@ QSOlive uses a three-tier architecture:
 ### Frontend
 - **Framework**: React 18
 - **Mapping**: Leaflet.js
-- **Deployment**: Vercel (recommended) or Netlify
+- **Deployment**: Vercel (recommended), Netlify, or Hugging Face Spaces
 - **State Management**: React hooks + Supabase client
 - **Styling**: Tailwind CSS
 
@@ -130,7 +130,7 @@ python qsolive_client.py
 ```
 qsolive/
 ├── client/                 # Windows UDP client
-│   ├── qsolive_client.py  # Main client application
+│   ├── qsoliv e_client.py  # Main client application
 │   ├── adif_parser.py     # ADIF format parser
 │   ├── config.json        # Client configuration
 │   └── requirements.txt   # Python dependencies
@@ -200,6 +200,21 @@ vercel
 ```
 
 Follow prompts to deploy. See [docs/deployment.md](docs/deployment.md) for detailed instructions.
+
+### Frontend Deployment (Hugging Face Spaces)
+
+1. Create a new Space (Docker SDK)
+2. Set Environment Variables in Space Settings (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
+3. Deploy via Git:
+   ```bash
+   git clone https://huggingface.co/spaces/YOUR_USERNAME/qsolive-demo
+   cp -r frontend/* qsolive-demo/
+   cd qsolive-demo
+   git add .
+   git commit -m "Deploy"
+   git push
+   ```
+   *Note: When prompted for a password, use a Hugging Face Access Token with 'write' permissions (Settings → Access Tokens).*
 
 ### Client Distribution
 
