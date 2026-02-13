@@ -1,0 +1,267 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+.sidebar {
+  width: 300px;
+  background: #1a1a1a;
+  color: white;
+  padding: 1rem;
+  overflow-y: auto;
+  border-right: 1px solid #333;
+  z-index: 1000;
+  height: 100%;
+}
+
+.map-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.time-filter {
+  width: 250px;
+  flex-shrink: 0;
+}
+
+.time-filter label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #ccc;
+}
+
+.slider {
+  width: 100%;
+}
+
+.operator-list {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 2rem;
+}
+
+.operator-item {
+  padding: 0.75rem;
+  border-bottom: 1px solid #333;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.operator-item:hover {
+  background: #333;
+}
+
+.operator-item.active {
+  background: #0078D7;
+  color: white;
+  font-weight: bold;
+}
+
+.badge {
+  background: #333;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  color: #ccc;
+}
+
+.operator-item.active .badge {
+  background: rgba(255,255,255,0.2);
+  color: white;
+}
+
+.marker-base {
+  width: 100%;
+  height: 100%;
+  border: 1px solid white;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  box-sizing: border-box;
+}
+
+.marker-highlight {
+  border: 2px solid white;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 0 12px rgba(0, 120, 215, 0.5);
+  z-index: 1000;
+  animation: pulse 2s infinite;
+}
+
+.shape-diamond {
+  transform: rotate(45deg);
+}
+
+.shape-circle {
+  border-radius: 50%;
+}
+
+.shape-square {
+  border-radius: 0%;
+}
+
+.shape-triangle {
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  border: none; /* Borders don't work well with clip-path */
+  /* Use drop-shadow for triangle depth since box-shadow is clipped */
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5));
+}
+
+.shape-triangle.marker-highlight {
+  filter: drop-shadow(0 0 2px white) drop-shadow(0 0 4px #0078D7);
+}
+
+.warning {
+  color: #ff6b6b;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.legend-section {
+}
+
+.legend-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.legend-item {
+  font-size: 0.8rem;
+  padding: 4px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-item:hover {
+  background: #333;
+}
+
+.legend-item.selected {
+  background: #444;
+  border-color: #666;
+}
+
+.legend-color-box {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+}
+
+.reset-filters-btn {
+  width: auto;
+  padding: 8px;
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+
+.reset-filters-btn:hover {
+  background-color: #444;
+}
+
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.bottom-controls {
+  background: #1a1a1a;
+  color: white;
+  padding: 1rem;
+  border-top: 1px solid #333;
+  display: flex;
+  gap: 2rem;
+  z-index: 2000;
+  overflow-x: auto;
+  align-items: flex-start;
+}
+
+.bottom-controls h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.logo {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #38bdf8; /* Modern Sky Blue */
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: -1px;
+}
+
+.pulsing-dot {
+  width: 12px;
+  height: 12px;
+  background-color: #fbbf24; /* Modern Yellow */
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
+  animation: dot-pulse 2s infinite;
+}
+
+@keyframes dot-pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
+  }
+  
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(251, 191, 36, 0);
+  }
+  
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+  }
+}
+
+.prefix-label {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  font-weight: bold;
+  color: #666;
+  font-size: 12px;
+  text-shadow: 0 0 2px white;
+}
+
+.demo-warning {
+  color: #ff6b6b;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
