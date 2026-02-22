@@ -1,6 +1,873 @@
-body {
+html, body, #root {
+  height: 100%;
   margin: 0;
+}
+
+body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* App layout (replaces Tailwind – Tailwind not installed) */
+.app-root {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #000;
+  color: #22c55e;
+}
+
+.app-header {
+  flex-shrink: 0;
+  padding: 1rem;
+  background: #000;
+  border-bottom: 1px solid #1f2937;
+}
+
+.app-header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-header-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #eab308;
+}
+
+.app-header h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #22c55e;
+  letter-spacing: 0.05em;
+  font-family: ui-monospace, monospace;
+  margin: 0;
+}
+
+.app-header-user {
+  margin-top: 0.25rem;
+}
+
+.app-header-callsign {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  font-family: ui-monospace, monospace;
+}
+
+.app-header-badge {
+  margin-left: 0.5rem;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #22c55e;
+  border: 1px solid #22c55e;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+}
+
+.app-header-monitor {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
+}
+
+.app-header-monitor-value {
+  color: #eab308;
+  font-weight: 700;
+}
+
+.app-header-signout {
+  margin-top: 0.5rem;
+  background: transparent;
+  border: 1px solid #374151;
+  color: #9ca3af;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.app-header-signout:hover {
+  color: #fff;
+  border-color: #6b7280;
+}
+
+.app-header-guest {
+  margin-top: 0.5rem;
+}
+
+.app-header-guest-text {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin-right: 0.75rem;
+}
+
+.app-header-signin-btn {
+  background: #22c55e;
+  color: #000;
+  border: none;
+  font-weight: 700;
+  font-size: 0.875rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.app-header-signin-btn:hover {
+  background: #16a34a;
+}
+
+/* Auth form in header */
+.auth-box {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 0.25rem;
+  max-width: 280px;
+}
+
+.auth-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem 0;
+  color: #fff;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.auth-form .settings-input {
+  padding: 0.5rem;
+}
+
+.auth-form .settings-submit {
+  padding: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.auth-message {
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+  padding: 0.35rem;
+  border-radius: 0.25rem;
+}
+
+.auth-message-error {
+  color: #fca5a5;
+  background: rgba(127, 29, 29, 0.3);
+}
+
+.auth-message-success {
+  color: #86efac;
+  background: rgba(22, 101, 52, 0.3);
+}
+
+.auth-toggle {
+  margin-top: 0.75rem;
+  background: none;
+  border: none;
+  color: #22c55e;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+}
+
+.auth-toggle:hover {
+  text-decoration: underline;
+}
+
+.app-nav {
+  background: #111827;
+  border-bottom: 1px solid #1f2937;
+  padding: 0.5rem 1rem;
+  display: flex;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.app-nav a {
+  color: inherit;
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+}
+
+.app-nav a:hover {
+  color: #fff;
+}
+
+.app-main {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.app-footer {
+  background: #000;
+  border-top: 1px solid #1f2937;
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #4b5563;
+  font-family: ui-monospace, monospace;
+  flex-shrink: 0;
+}
+
+/* Map page layout */
+.map-page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+}
+
+.map-sidebar {
+  width: 16rem;
+  background: #111827;
+  border-right: 1px solid #1f2937;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 10;
+  min-height: 0;
+}
+
+.map-sidebar-header {
+  padding: 1rem;
+  border-bottom: 1px solid #1f2937;
+  background: #000;
+  flex-shrink: 0;
+}
+
+.map-sidebar-header h3 {
+  color: #22c55e;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.map-filters {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #1f2937;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.map-filter-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.map-filter-select {
+  width: 100%;
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 0.25rem;
+  padding: 0.4rem 0.5rem;
+  color: #fff;
+  font-family: ui-monospace, monospace;
+  font-size: 0.875rem;
+}
+
+.map-filter-select:focus {
+  outline: none;
+  border-color: #22c55e;
+}
+
+.map-time-slider-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.map-time-slider {
+  width: 100%;
+  height: 6px;
+  accent-color: #22c55e;
+  cursor: pointer;
+}
+
+.map-time-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.map-filter-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.map-filter-btn {
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.2rem;
+  border: 1px solid #374151;
+  background: #111827;
+  color: #9ca3af;
+  cursor: pointer;
+}
+
+.map-filter-btn:hover {
+  border-color: #22c55e;
+  color: #e5e7eb;
+}
+
+.map-filter-btn-on {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+/* Band buttons: colored dot matches map marker color */
+.map-filter-btn-band {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.map-filter-btn-band-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Mode buttons: shape symbol matches map marker shape */
+.map-filter-btn-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.map-filter-btn-mode-symbol {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  background: var(--mode-symbol-color, #9ca3af);
+}
+.map-filter-btn-mode.shape-diamond .map-filter-btn-mode-symbol {
+  transform: rotate(45deg);
+}
+.map-filter-btn-mode.shape-circle .map-filter-btn-mode-symbol {
+  border-radius: 50%;
+}
+.map-filter-btn-mode.shape-square .map-filter-btn-mode-symbol {
+  border-radius: 0;
+}
+.map-filter-btn-mode.shape-triangle .map-filter-btn-mode-symbol {
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  background: var(--mode-symbol-color, #9ca3af);
+}
+.map-filter-btn-mode.map-filter-btn-on .map-filter-btn-mode-symbol {
+  --mode-symbol-color: #22c55e;
+}
+
+.map-sidebar-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.map-operator-item {
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 0.25rem;
+  background: rgba(31, 41, 55, 0.5);
+  border: 1px solid #374151;
+  border-radius: 0.25rem;
+  color: #fff;
+  font-family: ui-monospace, monospace;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+}
+
+.map-operator-item:hover {
+  background: #1f2937;
+}
+
+.map-operator-item.current {
+  color: #facc15;
+  font-weight: 700;
+}
+
+.map-operator-item.selected {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+}
+
+.map-operator-dot {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.map-sidebar-empty {
+  color: #4b5563;
+  font-size: 0.875rem;
+  padding: 0.5rem;
+  font-style: italic;
+}
+
+.map-content {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+}
+
+.map-inner {
+  position: absolute;
+  inset: 0;
+}
+
+.map-inner .leaflet-container {
+  height: 100%;
+  width: 100%;
+}
+
+/* Compact single-line contact popup (tooltip) */
+.map-contact-popup .leaflet-popup-content-wrapper {
+  padding: 0.35rem 0.5rem;
+}
+.map-contact-popup .leaflet-popup-content {
+  margin: 0;
+  min-width: 0;
+}
+.map-contact-popup-line {
+  display: block;
+  font-size: 0.75rem;
+  font-family: ui-monospace, monospace;
+  white-space: nowrap;
+  max-width: 90vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Settings page */
+.settings-page {
+  max-width: 42rem;
+  margin: 2rem auto 0;
+  padding: 1.5rem;
+  background: #000;
+  border: 1px solid #1f2937;
+  border-radius: 0.5rem;
+  font-family: ui-monospace, monospace;
+  color: #22c55e;
+}
+
+.settings-loading {
+  padding: 2rem;
+  color: #22c55e;
+  font-family: ui-monospace, monospace;
+}
+
+.settings-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #1f2937;
+}
+
+.settings-message {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 0.25rem;
+}
+
+.settings-message-success {
+  background: rgba(22, 101, 52, 0.3);
+  color: #22c55e;
+}
+
+.settings-message-error {
+  background: rgba(127, 29, 29, 0.3);
+  color: #f87171;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.settings-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #9ca3af;
+}
+
+.settings-input {
+  width: 100%;
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 0.25rem;
+  padding: 0.75rem 1rem;
+  color: #fff;
+  font-family: inherit;
+}
+
+.settings-input:focus {
+  outline: none;
+  border-color: #22c55e;
+}
+
+.settings-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.settings-radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  border: 1px solid #1f2937;
+}
+
+.settings-radio:hover {
+  background: #111827;
+}
+
+.settings-radio input {
+  margin-top: 0.2rem;
+  accent-color: #22c55e;
+}
+
+.settings-radio-title {
+  display: block;
+  font-weight: 700;
+}
+
+.settings-radio-desc {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.settings-club-block {
+  padding-left: 2rem;
+  border-left: 2px solid #1f2937;
+}
+
+.settings-checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.settings-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+}
+
+.settings-checkbox input {
+  accent-color: #22c55e;
+}
+
+.settings-checkbox-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.settings-hint {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+}
+
+.settings-submit {
+  width: 100%;
+  background: #16a34a;
+  color: #000;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.settings-submit:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.settings-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Club Admin page */
+.admin-page {
+  max-width: 72rem;
+  margin: 2rem auto 0;
+  padding: 1.5rem;
+  background: #000;
+  border: 1px solid #1f2937;
+  border-radius: 0.5rem;
+  font-family: ui-monospace, monospace;
+  color: #22c55e;
+}
+
+.admin-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #1f2937;
+}
+
+.admin-msg-dismiss {
+  float: right;
+  font-weight: 700;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 0.25rem;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 2rem;
+}
+
+@media (max-width: 768px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-sidebar {
+  border-right: 1px solid #1f2937;
+  padding-right: 1.5rem;
+}
+
+.admin-subtitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0.5rem;
+}
+
+.admin-hint {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-bottom: 1rem;
+}
+
+.admin-form {
+  margin-bottom: 1.5rem;
+}
+
+.admin-form .settings-input {
+  margin-bottom: 0.5rem;
+}
+
+.admin-create-btn {
+  width: 100%;
+  background: #15803d;
+  color: #fff;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 0.5rem;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.admin-create-btn:hover {
+  background: #16a34a;
+}
+
+.admin-club-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-club-btn {
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  border: 1px solid #1f2937;
+  background: transparent;
+  color: #9ca3af;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.admin-club-btn:hover {
+  background: #111827;
+}
+
+.admin-club-btn-selected {
+  border-color: #22c55e;
+  background: rgba(22, 163, 74, 0.15);
+  color: #fff;
+}
+
+.admin-badge {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: #22c55e;
+}
+
+.admin-empty {
+  color: #6b7280;
+  font-style: italic;
+  padding: 0.5rem 0;
+}
+
+.admin-main {
+  min-height: 200px;
+}
+
+.admin-roster-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.admin-roster-input {
+  flex: 1;
+}
+
+.admin-add-op-btn {
+  background: #1d4ed8;
+  color: #fff;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.admin-add-op-btn:hover {
+  background: #2563eb;
+}
+
+.admin-table-wrap {
+  background: rgba(17, 24, 39, 0.5);
+  border-radius: 0.25rem;
+  border: 1px solid #1f2937;
+  overflow: hidden;
+}
+
+.admin-table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+}
+
+.admin-table thead {
+  background: #111827;
+  color: #9ca3af;
+  border-bottom: 1px solid #1f2937;
+}
+
+.admin-table th {
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+}
+
+.admin-th-action {
+  text-align: right;
+}
+
+.admin-table tbody tr {
+  border-bottom: 1px solid #1f2937;
+}
+
+.admin-table tbody tr:hover {
+  background: rgba(31, 41, 55, 0.5);
+}
+
+.admin-td-call {
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.admin-td-date {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.admin-td-action {
+  padding: 0.75rem 1rem;
+  text-align: right;
+}
+
+.admin-empty-cell {
+  padding: 1rem;
+  text-align: center;
+  color: #6b7280;
+}
+
+.admin-remove-btn {
+  background: none;
+  border: none;
+  color: #f87171;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.admin-remove-btn:hover {
+  color: #fca5a5;
+}
+
+.admin-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #6b7280;
+  font-style: italic;
+  border: 1px dashed #1f2937;
+  border-radius: 0.25rem;
 }
 
 .app-container {
@@ -96,26 +963,26 @@ body {
   animation: pulse 2s infinite;
 }
 
-.shape-diamond {
+/* Shape transforms only on map markers, not filter buttons */
+.marker-base.shape-diamond {
   transform: rotate(45deg);
 }
 
-.shape-circle {
+.marker-base.shape-circle {
   border-radius: 50%;
 }
 
-.shape-square {
+.marker-base.shape-square {
   border-radius: 0%;
 }
 
-.shape-triangle {
+.marker-base.shape-triangle {
   clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
   border: none; /* Borders don't work well with clip-path */
-  /* Use drop-shadow for triangle depth since box-shadow is clipped */
   filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5));
 }
 
-.shape-triangle.marker-highlight {
+.marker-base.shape-triangle.marker-highlight {
   filter: drop-shadow(0 0 2px white) drop-shadow(0 0 4px #0078D7);
 }
 
