@@ -14,9 +14,27 @@ export default function Settings() {
   const [selectedClubIds, setSelectedClubIds] = useState([]); // for mode 'clubs', max 4
   const [message, setMessage] = useState(null);
 
+  // Request to join club (Phase 1)
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [clubsWithOwner, setClubsWithOwner] = useState([]);
+  const [requestClubId, setRequestClubId] = useState('');
+  const [requestCallsign, setRequestCallsign] = useState('');
+  const [requestMessage, setRequestMessage] = useState('');
+  const [requestStatus, setRequestStatus] = useState(null); // 'copied' | 'no-email' | null
+
   useEffect(() => {
     fetchProfileAndClubs();
   }, []);
+
+  useEffect(() => {
+    if (showRequestForm && clubsWithOwner.length === 0) {
+      fetchClubsWithOwner();
+    }
+  }, [showRequestForm]);
+
+  useEffect(() => {
+    if (showRequestForm && callsign) setRequestCallsign(callsign);
+  }, [showRequestForm, callsign]);
 
   const fetchProfileAndClubs = async () => {
     try {
@@ -58,6 +76,56 @@ export default function Settings() {
       console.error('Error loading settings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchClubsWithOwner = async () => {
+    const { data, error } = await supabase
+      .from('clubs')
+      .select('id, name, owner_id, profiles(email)')
+      .order('name');
+    if (!error) setClubsWithOwner(data || []);
+  };
+
+  const selectedRequestClub = clubsWithOwner.find((c) => c.id === requestClubId);
+  const ownerEmail = selectedRequestClub?.profiles?.email ?? null;
+
+  const buildRequestEmailBody = () => {
+    const clubName = selectedRequestClub?.name ?? 'Unknown club';
+    let body = `Request to add my callsign to the club roster.\n\nClub: ${clubName}\nCallsign: ${(requestCallsign || '').trim().toUpperCase()}`;
+    if ((requestMessage || '').trim()) body += `\n\nMessage:\n${requestMessage.trim()}`;
+    return body;
+  };
+
+  const buildRequestEmailSubject = () => {
+    const clubName = selectedRequestClub?.name ?? 'Unknown club';
+    return `[QSOlive] Join request for club "${clubName}"`;
+  };
+
+  const handleOpenRequestEmail = () => {
+    setRequestStatus(null);
+    if (!requestClubId || !(requestCallsign || '').trim()) {
+      setRequestStatus('missing');
+      return;
+    }
+    if (!ownerEmail) {
+      setRequestStatus('no-email');
+      return;
+    }
+    const subject = encodeURIComponent(buildRequestEmailSubject());
+    const body = encodeURIComponent(buildRequestEmailBody());
+    window.location.href = `mailto:${ownerEmail}?subject=${subject}&body=${body}`;
+  };
+
+  const handleCopyRequest = async () => {
+    setRequestStatus(null);
+    if (!requestClubId || !(requestCallsign || '').trim()) return;
+    const text = `${buildRequestEmailSubject()}\n\n${buildRequestEmailBody()}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setRequestStatus('copied');
+    } catch (e) {
+      setRequestStatus('no-email');
     }
   };
 
@@ -188,6 +256,72 @@ export default function Settings() {
         )}
 
         <button type="button" onClick={handleSave} disabled={saving} className="settings-submit">{saving ? 'SAVING...' : 'SAVE CONFIGURATION'}</button>
+
+        <div className="settings-request-block">
+          {!showRequestForm ? (
+            <button type="button" onClick={() => setShowRequestForm(true)} className="settings-request-link">
+              Request to join a club
+            </button>
+          ) : (
+            <div className="settings-request-form">
+              <div className="settings-request-header">
+                <h3 className="settings-request-title">Request to join a club</h3>
+                <button type="button" onClick={() => setShowRequestForm(false)} className="settings-request-close" aria-label="Close">×</button>
+              </div>
+              <p className="settings-request-desc">Send a request to the club manager so they can add your callsign to the roster.</p>
+              <div>
+                <label className="settings-label">CLUB</label>
+                <select
+                  value={requestClubId}
+                  onChange={(e) => { setRequestClubId(e.target.value); setRequestStatus(null); }}
+                  className="settings-input"
+                >
+                  <option value="">-- Choose a club --</option>
+                  {clubsWithOwner.map((club) => (
+                    <option key={club.id} value={club.id}>{club.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="settings-label">YOUR CALLSIGN</label>
+                <input
+                  type="text"
+                  value={requestCallsign}
+                  onChange={(e) => setRequestCallsign(e.target.value.toUpperCase())}
+                  className="settings-input"
+                  placeholder="W1ABC"
+                />
+              </div>
+              <div>
+                <label className="settings-label">MESSAGE (OPTIONAL)</label>
+                <textarea
+                  value={requestMessage}
+                  onChange={(e) => setRequestMessage(e.target.value)}
+                  className="settings-input settings-request-message"
+                  placeholder="e.g. I'm the club secretary, please add me."
+                  rows={3}
+                />
+              </div>
+              {requestStatus === 'missing' && (
+                <p className="settings-request-note">Select a club and enter your callsign.</p>
+              )}
+              {requestStatus === 'no-email' && (
+                <p className="settings-request-note">This club has no contact email. Use &quot;Copy to clipboard&quot; and send the request another way.</p>
+              )}
+              {requestStatus === 'copied' && (
+                <p className="settings-request-copied">Copied to clipboard.</p>
+              )}
+              <div className="settings-request-actions">
+                <button type="button" onClick={handleOpenRequestEmail} className="settings-request-btn settings-request-btn-email">
+                  Open in email
+                </button>
+                <button type="button" onClick={handleCopyRequest} className="settings-request-btn settings-request-btn-copy">
+                  Copy to clipboard
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

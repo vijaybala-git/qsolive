@@ -2,7 +2,7 @@
 
 This document defines requirements for the **Settings** and **Club Admin** features of QSOlive, and how they relate to the map display and existing database.
 
-**Related docs:** [Architecture](architecture.md), [Database Setup](database-setup.md), [README](../README.md) (map, real-time contacts).
+**Related docs:** [Architecture](architecture.md), [Database Setup](database-setup.md), [README](../README.md) (map, real-time contacts), [Request to Join Club](requirements-club-join-request.md) (design).
 
 ---
 
