@@ -69,13 +69,28 @@ def run_simulation(args):
         print("No valid ADIF records found.")
         sys.exit(1)
 
-    # Select real callsigns for the simulation pool
-    pool_size = min(args.clients, len(all_callsigns))
-    client_pool = random.sample(list(all_callsigns), pool_size)
-    
-    print(f"Simulating {pool_size} concurrent operators selected from log: {', '.join(client_pool[:5])}...")
+    # Operator selection: single callsign or pool
+    if args.callsign:
+        operator_callsign_fixed = args.callsign.strip().upper()
+        client_pool = None
+        print(f"Single operator mode: {operator_callsign_fixed} (tests 'My Personal Log')")
+    else:
+        pool_size = min(args.clients, len(all_callsigns))
+        client_pool = random.sample(list(all_callsigns), pool_size)
+        operator_callsign_fixed = None
+        print(f"Simulating {pool_size} concurrent operators: {', '.join(client_pool[:5])}...")
+
+    total_planned = min(args.limit, len(parsed_records))
     print(f"Sending max {args.limit} records with Poisson distribution (mean {args.delay}s)...")
+    if args.hours_back > 0:
+        print(f"Timestamps spread over last {args.hours_back} hours")
+    if args.start_delay > 0:
+        print(f"Starting in {args.start_delay}s...")
     print("-" * 50)
+
+    # Start delay for multi-instance runs
+    if args.start_delay > 0:
+        time.sleep(args.start_delay)
 
     # 4. Simulation Loop
     count = 0
@@ -85,18 +100,21 @@ def run_simulation(args):
             print("Limit reached.")
             break
 
-        # --- HEURISTIC: Client Simulation ---
-        # Round-robin assignment of this contact to a simulated operator
-        operator_callsign = client_pool[i % len(client_pool)]
+        # --- Operator ---
+        if operator_callsign_fixed:
+            operator_callsign = operator_callsign_fixed
+        else:
+            operator_callsign = client_pool[i % len(client_pool)]
 
-        # --- HEURISTIC: Time Adjustment ---
-        # Set to current UTC time
-        now = datetime.now(timezone.utc)
-        if args.offset:
-            now = now - timedelta(hours=args.offset)
-            
-        qso_date = now.strftime('%Y-%m-%d')
-        time_on = now.strftime('%H:%M:%S')
+        # --- Time Adjustment ---
+        anchor = datetime.now(timezone.utc) - timedelta(hours=args.offset)
+        if args.hours_back > 0 and total_planned > 1:
+            frac = count / (total_planned - 1)
+            qso_dt = anchor - timedelta(hours=args.hours_back) + timedelta(hours=args.hours_back * frac)
+        else:
+            qso_dt = anchor
+        qso_date = qso_dt.strftime('%Y-%m-%d')
+        time_on = qso_dt.strftime('%H:%M:%S')
 
         # Build Contact Object (Mirroring logic from qsolive_client.py)
         contact = {
@@ -153,6 +171,9 @@ if __name__ == "__main__":
     parser.add_argument('--limit', type=int, default=100, help='Max number of records to send')
     parser.add_argument('--clients', type=int, default=1, help='Number of simulated operators')
     parser.add_argument('--offset', type=float, default=0.0, help='Hours to subtract from current time (e.g. 2.5 for 2.5 hours ago)')
+    parser.add_argument('--callsign', type=str, default=None, help='Single operator for all contacts (tests "My Personal Log"). Overrides --clients')
+    parser.add_argument('--hours-back', type=float, default=0.0, help='Spread timestamps from (now - N hours) to now; 0 = all "now"')
+    parser.add_argument('--start-delay', type=float, default=0.0, help='Seconds to wait before sending first contact (for multi-instance runs)')
     
     args = parser.parse_args()
     
