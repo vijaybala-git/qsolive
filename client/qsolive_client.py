@@ -3,6 +3,7 @@
 QSOlive Client - Captures UDP ADIF and sends to Supabase
 """
 
+import os
 import socket
 import json
 import logging
@@ -14,18 +15,48 @@ import requests
 
 import maidenhead as mh
 
-# Configuration
+# Built-in Supabase (hidden from user). Set via build_config.py at build time, or env for dev.
+try:
+    from build_config import BUILTIN_SUPABASE_URL, BUILTIN_SUPABASE_KEY  # type: ignore
+except ImportError:
+    BUILTIN_SUPABASE_URL = os.environ.get('QSOLIVE_SUPABASE_URL', '')
+    BUILTIN_SUPABASE_KEY = os.environ.get('QSOLIVE_SUPABASE_KEY', '')
+
+
+def _config_path() -> str:
+    """Resolve config.json path: same dir as exe, or current working directory."""
+    candidates = [
+        os.path.join(os.path.dirname(os.path.abspath(sys.executable)), 'config.json'),
+        os.path.join(os.getcwd(), 'config.json'),
+    ]
+    for p in candidates:
+        if os.path.isfile(p):
+            return p
+    return os.path.join(os.path.dirname(os.path.abspath(sys.executable)), 'config.json')
+
+
 def load_config() -> Dict:
-    """Load configuration from config.json"""
+    """Load configuration from config.json. Supabase URL/key can be built-in (user never sees them)."""
+    path = _config_path()
     try:
-        with open('config.json', 'r') as f:
-            return json.load(f)
+        with open(path, 'r') as f:
+            data = json.load(f)
     except FileNotFoundError:
-        print("ERROR: config.json not found! Please copy config.example.json to config.json")
+        print("ERROR: config.json not found! Please run the installer or copy config.example.json to config.json.")
         sys.exit(1)
     except json.JSONDecodeError:
         print("ERROR: Invalid JSON in config.json")
         sys.exit(1)
+    # Prefer built-in Supabase so user does not need to configure them
+    if BUILTIN_SUPABASE_URL:
+        data['supabase_url'] = data.get('supabase_url') or BUILTIN_SUPABASE_URL
+    if BUILTIN_SUPABASE_KEY:
+        data['supabase_key'] = data.get('supabase_key') or BUILTIN_SUPABASE_KEY
+    if not data.get('supabase_url') or not data.get('supabase_key'):
+        print("ERROR: Supabase URL and key are not configured. Use built-in build or set in config.json.")
+        sys.exit(1)
+    return data
+
 
 config = load_config()
 

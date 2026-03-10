@@ -1,5 +1,7 @@
 # Windows Client Setup Guide
 
+**Part of the core docs:** [Documentation index](README.md) · [Architecture](architecture.md) · [Database setup](database-setup.md) · [Deployment](deployment.md)
+
 This guide covers setting up the QSOlive Windows client that captures UDP ADIF packets from logging software and sends them to Supabase.
 
 ## Overview
@@ -68,15 +70,15 @@ pip install -r requirements.txt
 
 ### 5. Create Configuration File
 
-Create `config.json`:
+For **development**, create `config.json` (or copy `config.example.json`). If you do not use built-in Supabase (see Packaging), include URL and key:
 
 ```json
 {
   "supabase_url": "https://your-project.supabase.co",
   "supabase_key": "your-service-role-key",
+  "operator_callsign": "W6VIJ",
   "udp_port": 2237,
   "udp_host": "0.0.0.0",
-  "operator_callsign": "W6VIJ",
   "update_interval": 1,
   "retry_attempts": 3,
   "retry_delay": 5,
@@ -85,17 +87,14 @@ Create `config.json`:
 }
 ```
 
+For **distribution**, Supabase URL and key are built into the client (hidden from end users). Users only set their callsign (via the installer or by editing `config.json`). See Packaging for building the executable with built-in credentials.
+
 **Configuration Options**:
-- `supabase_url`: Your Supabase project URL
-- `supabase_key`: Service role key (keep secret!)
+- `operator_callsign`: Your callsign (required for users)
 - `udp_port`: Port to listen on (2237 is standard)
 - `udp_host`: Interface to bind to (0.0.0.0 = all)
-- `operator_callsign`: Your callsign
-- `update_interval`: Seconds between batch sends
-- `retry_attempts`: Number of retries on failure
-- `retry_delay`: Seconds between retries
-- `log_level`: DEBUG, INFO, WARNING, ERROR
-- `log_file`: Where to write logs
+- `supabase_url` / `supabase_key`: Only needed for dev if not using `build_config.py` or env
+- `update_interval`, `retry_attempts`, `retry_delay`, `log_level`, `log_file`: Optional
 
 ### 6. Create Client Application
 
@@ -473,43 +472,82 @@ python test_udp.py
 
 ## Packaging for Distribution
 
-### Create Standalone Executable
+End users only provide their **callsign** during install; Supabase configuration is hidden and built into the client.
 
-Install PyInstaller:
-```bash
-pip install pyinstaller
+### 1. Build the executable (with built-in Supabase)
+
+1. **Add built-in Supabase credentials** (one-time per build):
+   - Copy `client/build_config.example.py` to `client/build_config.py`.
+   - Set `BUILTIN_SUPABASE_URL` and `BUILTIN_SUPABASE_KEY` in `build_config.py` (use your project URL and service_role or anon key). Do not commit `build_config.py` (it is in `.gitignore`).
+
+2. **Install PyInstaller** (if needed):
+   ```bash
+   pip install pyinstaller
+   ```
+
+3. **Build the executable**:
+   ```bash
+   cd client
+   pyinstaller --clean QSOlive.spec
+   ```
+   Output: `client/dist/QSOlive.exe`
+
+### 2. Create Windows Installer with Inno Setup
+
+1. **Install Inno Setup** (free): [https://jrsoftware.org/isinfo.php](https://jrsoftware.org/isinfo.php)  
+   - Download and install the standard version.
+
+2. **Ensure these exist in `client/`:**
+   - `dist/QSOlive.exe` (from step 1)
+   - `config.example.json` (template with `operator_callsign` and optional settings; no Supabase fields)
+   - `NextSteps.txt` (next-steps instructions for configuring the logger)
+   - `icon.ico` (used for installer and shortcuts)
+   - `QSOlive.iss` (Inno Setup script)
+
+3. **Compile the installer**
+   - Open **Inno Setup Compiler**
+   - **File → Open** and select `client/QSOlive.iss`
+   - **Build → Compile** (or press Ctrl+F9)
+   - The installer is created as: `client/installer_output/QSOlive_Setup_1.0.exe`
+
+4. **What the installer does**
+   - Asks the user for their **callsign** on a wizard page and writes it into `config.json` (Supabase is not shown or edited).
+   - Installs `QSOlive.exe` to the chosen folder (default: `%LocalAppData%\Programs\QSOlive` when running without admin).
+   - Copies `config.example.json` as `config.json` only on first install; upgrades do not overwrite existing config.
+   - Creates Start Menu shortcuts: **QSOlive Client**, **Configure your logger** (opens `NextSteps.txt`), **Edit config (advanced)**, and Uninstall.
+   - Optional desktop shortcut (checkbox during install).
+   - Shows the "Next steps" text on the completion page and optionally opens **Configure your logger** so the user can set up their logging software (UDP port 2237, ADIF).
+
+**Updating the version:** Edit the `#define MyAppVersion "1.0"` line at the top of `client/QSOlive.iss`, then recompile.
+
+## Development environment (VS Code)
+
+For full-stack development (client + frontend) with VS Code:
+
+**Prerequisites:** Node.js 18+, Python 3.9+, Git. Verify: `node --version`, `python --version`, `git --version`.
+
+**Recommended extensions:** Python (Microsoft), ESLint, Prettier, GitLens. Optional: ES7+ React snippets, Thunder Client (API testing), Error Lens.
+
+**Workspace settings** – Create `.vscode/settings.json` in the repo root for format-on-save and language-specific formatters:
+
+```json
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[python]": { "editor.defaultFormatter": "ms-python.black-formatter", "editor.formatOnSave": true },
+  "python.linting.enabled": true,
+  "python.formatting.provider": "black",
+  "files.associations": { "*.sql": "sql" }
+}
 ```
 
-Create executable:
-```bash
-pyinstaller --clean --onefile --name QSOlive --hidden-import=maidenhead --icon=icon.ico qsolive_client.py
-```
+**Tasks** – In `.vscode/tasks.json` you can add tasks for “Run Frontend Dev Server” (`npm run dev` in `frontend`) and “Run Python Client” (`python qsolive_client.py` in `client`).
 
-Output: `dist/QSOlive.exe`
+**Debugging the client** – In `.vscode/launch.json`, add a configuration with `"type": "python"`, `"program": "${workspaceFolder}/client/qsolive_client.py"`, `"cwd": "${workspaceFolder}/client"` to run and debug the client from VS Code.
 
-### Create Installer (Optional)
+**Frontend:** In `frontend/`, create `.env.local` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, then `npm install` and `npm run dev`. Do not commit `.env.local`.
 
-Use Inno Setup or NSIS to create a proper Windows installer.
- 
-Example Inno Setup script (`installer.iss`):
-
-```ini
-[Setup]
-AppName=QSOlive Client
-AppVersion=1.0
-DefaultDirName={pf}\QSOlive
-DefaultGroupName=QSOlive
-OutputDir=installer_output
-OutputBaseFilename=QSOlive_Setup
-
-[Files]
-Source: "dist\QSOlive.exe"; DestDir: "{app}"
-Source: "config.example.json"; DestDir: "{app}"; DestName: "config.json"
-
-[Icons]
-Name: "{group}\QSOlive Client"; Filename: "{app}\QSOlive.exe"
-Name: "{group}\Edit Config"; Filename: "notepad.exe"; Parameters: "{app}\config.json"
-```
+**Typical workflow:** Terminal 1: `cd frontend && npm run dev`. Terminal 2: `cd client && .venv\Scripts\activate && python qsolive_client.py`.
 
 ## Troubleshooting
 
@@ -527,9 +565,9 @@ netstat -an | findstr :2237
 
 ### No Contacts Appearing
 
-1. **Check logging software** is sending UDP
+1. **Check logging software** is sending UDP (see **Configure your logger** / `NextSteps.txt`).
 2. **Check firewall** isn't blocking port 2237
-3. **Check config.json** has correct Supabase credentials
+3. **Check config.json** has your callsign (`operator_callsign`); Supabase is built-in for distributed builds
 4. **Check logs**: `qsolive_client.log`
 
 ### Grid Square Errors
@@ -543,14 +581,12 @@ Some loggers don't send grid squares. Configure in logger software or manually a
 ping supabase.com
 ```
 
-**Check Supabase URL** is correct in config.json
-
-**Check API key** is service_role key (not anon key)
+For development builds, ensure `config.json` or `build_config.py` has the correct Supabase URL and key. Distributed builds use built-in credentials.
 
 ## Security Best Practices
 
-1. **Never share config.json** (contains API keys)
-2. **Use service_role key** only in client (not frontend)
+1. **Do not commit `build_config.py`** (contains Supabase key used when building the exe)
+2. **End-user config.json** only contains callsign and optional UDP/log settings; Supabase is hidden in distributed builds
 3. **Keep client updated** with security patches
 4. **Use firewall** to restrict UDP to local network only
 5. **Log rotation** to prevent disk filling
@@ -568,3 +604,12 @@ ping supabase.com
 - Check logs: `qsolive_client.log`
 - GitHub Issues: Report bugs
 - Discord/Email: Get help from community
+
+---
+
+## Related documentation
+
+- **[Architecture](architecture.md)** – System design, data flow, and components.
+- **[Database setup](database-setup.md)** – Create and configure the Supabase database.
+- **[Deployment](deployment.md)** – Dev vs prod, Vercel, release process.
+- **[Documentation index](README.md)** – Overview of all core docs.

@@ -1,0 +1,10 @@
+{
+  "operator_callsign": "YOUR_CALL",
+  "udp_port": 2237,
+  "udp_host": "0.0.0.0",
+  "update_interval": 1,
+  "retry_attempts": 3,
+  "retry_delay": 5,
+  "log_level": "INFO",
+  "log_file": "qsolive_client.log"
+}

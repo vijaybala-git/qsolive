@@ -1,5 +1,7 @@
 # Database Setup Guide
 
+**Part of the core docs:** [Documentation index](README.md) · [Architecture](architecture.md) · [Client setup](client-setup.md) · [Deployment](deployment.md)
+
 This guide walks through setting up the PostgreSQL database in Supabase for QSOlive.
 
 ## Prerequisites
@@ -52,18 +54,6 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 -- ============================================================================
 -- TABLES
 -- ============================================================================
-
--- Operators table (optional, for tracking club members)
-CREATE TABLE IF NOT EXISTS operators (
-  id BIGSERIAL PRIMARY KEY,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  callsign VARCHAR(20) UNIQUE NOT NULL,
-  name VARCHAR(100),
-  email VARCHAR(255),
-  grid_square VARCHAR(10),
-  active BOOLEAN DEFAULT true,
-  notes TEXT
-);
 
 -- Main contacts table
 CREATE TABLE IF NOT EXISTS contacts (
@@ -191,36 +181,9 @@ CREATE INDEX IF NOT EXISTS idx_contacts_search
   ON contacts USING GIN(to_tsvector('english', 
     COALESCE(comment, '') || ' ' || COALESCE(notes, '')));
 
--- Operators indexes
-CREATE INDEX IF NOT EXISTS idx_operators_callsign 
-  ON operators(callsign);
-
-CREATE INDEX IF NOT EXISTS idx_operators_active 
-  ON operators(active) 
-  WHERE active = true;
-
 -- ============================================================================
 -- VIEWS
 -- ============================================================================
-
--- Recent contacts (last 24 hours)
-CREATE OR REPLACE VIEW recent_contacts AS
-SELECT 
-  id,
-  callsign,
-  contacted_callsign,
-  qso_date,
-  time_on,
-  band,
-  mode,
-  frequency,
-  operator_callsign,
-  gridsquare,
-  location,
-  created_at
-FROM contacts
-WHERE created_at >= NOW() - INTERVAL '24 hours'
-ORDER BY created_at DESC;
 
 -- Contact summary by operator
 CREATE OR REPLACE VIEW operator_summary AS
@@ -369,14 +332,6 @@ CREATE POLICY "Allow authenticated inserts"
   TO anon
   WITH CHECK (true);
 
--- Allow operators table read
-ALTER TABLE operators ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Public read operators" ON operators;
-CREATE POLICY "Public read operators" 
-  ON operators FOR SELECT 
-  USING (active = true);
-
 -- Allow stats table read
 ALTER TABLE contact_stats ENABLE ROW LEVEL SECURITY;
 
@@ -384,6 +339,136 @@ DROP POLICY IF EXISTS "Public read stats" ON contact_stats;
 CREATE POLICY "Public read stats" 
   ON contact_stats FOR SELECT 
   USING (true);
+
+-- ============================================================================
+-- USER, CLUBS, AND ROSTER (Settings & Club Admin)
+-- Run after the main schema above. See Architecture doc for display_config usage.
+-- ============================================================================
+
+-- Profiles (extends auth.users: callsign, display_config)
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL PRIMARY KEY,
+  email TEXT,
+  full_name TEXT,
+  callsign TEXT,
+  display_config JSONB DEFAULT '{"mode": "self"}'::jsonb,
+  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'master_admin')),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT callsign_length CHECK (char_length(callsign) >= 3)
+);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
+CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
+CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- Trigger: create profile on signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name)
+  VALUES (new.id, new.email, new.raw_user_meta_data->>'full_name');
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- Clubs (name unique normalized; description required)
+CREATE TABLE IF NOT EXISTS public.clubs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  owner_id UUID REFERENCES public.profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_clubs_name_lower_unique
+  ON public.clubs (lower(trim(name)));
+
+ALTER TABLE public.clubs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Clubs are viewable by everyone" ON public.clubs;
+CREATE POLICY "Clubs are viewable by everyone" ON public.clubs FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can create clubs" ON public.clubs;
+CREATE POLICY "Users can create clubs" ON public.clubs FOR INSERT WITH CHECK (auth.uid() = owner_id);
+DROP POLICY IF EXISTS "Owners and master admin can update clubs" ON public.clubs;
+CREATE POLICY "Owners and master admin can update clubs" ON public.clubs FOR UPDATE
+  USING (owner_id = auth.uid() OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'master_admin'));
+
+-- Club roster (callsigns per club)
+CREATE TABLE IF NOT EXISTS public.club_roster (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  club_id UUID REFERENCES public.clubs(id) ON DELETE CASCADE NOT NULL,
+  callsign TEXT NOT NULL,
+  added_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(club_id, callsign)
+);
+
+ALTER TABLE public.club_roster ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Roster is viewable by everyone" ON public.club_roster;
+CREATE POLICY "Roster is viewable by everyone" ON public.club_roster FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Club owners and master admin can manage roster" ON public.club_roster;
+CREATE POLICY "Club owners and master admin can manage roster" ON public.club_roster FOR ALL
+  USING (
+    EXISTS (SELECT 1 FROM public.clubs c WHERE c.id = club_roster.club_id AND c.owner_id = auth.uid())
+    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'master_admin')
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.clubs c WHERE c.id = club_roster.club_id AND c.owner_id = auth.uid())
+    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'master_admin')
+  );
+
+-- RPC: display logs for self or single club
+CREATE OR REPLACE FUNCTION get_display_logs(filter_mode TEXT, filter_value TEXT)
+RETURNS SETOF contacts
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT * FROM contacts
+  WHERE
+    CASE
+      WHEN filter_mode = 'club' THEN operator_callsign IN (SELECT callsign FROM club_roster WHERE club_id = filter_value::uuid)
+      WHEN filter_mode = 'self' THEN operator_callsign = filter_value
+      ELSE false
+    END
+  ORDER BY qso_date DESC, time_on DESC
+  LIMIT 1000;
+$$;
+
+-- RPC: display logs for multiple clubs (up to 4)
+CREATE OR REPLACE FUNCTION public.get_display_logs_clubs(club_ids UUID[])
+RETURNS SETOF contacts
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT c.* FROM contacts c
+  WHERE c.operator_callsign IN (
+    SELECT cr.callsign FROM club_roster cr WHERE cr.club_id = ANY(club_ids)
+  )
+  ORDER BY c.qso_date DESC, c.time_on DESC
+  LIMIT 1000;
+$$;
+
+-- RPC: get club by name (for duplicate-create message)
+CREATE OR REPLACE FUNCTION public.get_club_by_name(name_input TEXT)
+RETURNS SETOF public.clubs
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT * FROM public.clubs WHERE lower(trim(name)) = lower(trim(name_input)) LIMIT 1;
+$$;
+
+-- Designate master admin (run once per user): update public.profiles set role = 'master_admin' where id = '<uuid>';
+
+-- Optional (Phase 2): club_join_requests table for in-app "Pending requests" and Approve/Deny.
+-- Phase 1 uses mailto to send join requests to the club owner; no table required.
 
 -- ============================================================================
 -- MAINTENANCE
@@ -413,11 +498,6 @@ $$ LANGUAGE plpgsql;
 -- ============================================================================
 -- SAMPLE DATA (Optional - for testing)
 -- ============================================================================
-
--- Insert sample operator
-INSERT INTO operators (callsign, name, grid_square, active)
-VALUES ('W1ABC', 'John Smith', 'FN31pr', true)
-ON CONFLICT (callsign) DO NOTHING;
 
 -- Insert sample contact
 INSERT INTO contacts (
@@ -471,10 +551,8 @@ FROM information_schema.tables
 WHERE table_schema = 'public'
 ORDER BY table_name;
 
--- Expected output:
--- contacts
--- contact_stats
--- operators
+-- Expected output (core + user/clubs):
+-- contacts, contact_stats, profiles, clubs, club_roster
 
 -- Check PostGIS
 SELECT PostGIS_version();
@@ -673,3 +751,12 @@ Access via: **Database** → **Backups**
 - [Supabase Documentation](https://supabase.com/docs)
 - [PostGIS Documentation](https://postgis.net/docs/)
 - [PostgreSQL Performance Tips](https://wiki.postgresql.org/wiki/Performance_Optimization)
+
+---
+
+## Related documentation
+
+- **[Architecture](architecture.md)** – Schema in context, indexes, and data flow.
+- **[Client setup](client-setup.md)** – Configure the client and installer against this database.
+- **[Deployment](deployment.md)** – Dev vs prod, Supabase CLI, migrations.
+- **[Documentation index](README.md)** – Overview of all core docs.

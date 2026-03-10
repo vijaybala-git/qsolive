@@ -9,6 +9,7 @@ export default function ClubAdmin() {
   const [selectedClub, setSelectedClub] = useState(null);
   const [roster, setRoster] = useState([]);
   const [newClubName, setNewClubName] = useState('');
+  const [newClubDescription, setNewClubDescription] = useState('');
   const [newOperator, setNewOperator] = useState('');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
@@ -42,7 +43,7 @@ export default function ClubAdmin() {
 
       const { data: owned, error: errOwned } = await supabase
         .from('clubs')
-        .select('*')
+        .select('*, profiles(callsign)')
         .eq('owner_id', user.id)
         .order('created_at', { ascending: false });
       if (errOwned) throw errOwned;
@@ -51,7 +52,7 @@ export default function ClubAdmin() {
       if (masterAdmin) {
         const { data: all, error: errAll } = await supabase
           .from('clubs')
-          .select('*')
+          .select('*, profiles(callsign)')
           .order('name');
         if (!errAll) setAllClubs(all || []);
       } else {
@@ -77,7 +78,16 @@ export default function ClubAdmin() {
 
   const handleCreateClub = async (e) => {
     e.preventDefault();
-    if (!newClubName.trim()) return;
+    const name = newClubName.trim();
+    const description = newClubDescription.trim();
+    if (!name) {
+      setMessage({ type: 'error', text: 'Club name is required. Use a callsign or abbreviation (e.g. W1ABC, YCCC).' });
+      return;
+    }
+    if (!description) {
+      setMessage({ type: 'error', text: 'Description (full name of club) is required.' });
+      return;
+    }
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -88,15 +98,26 @@ export default function ClubAdmin() {
 
       const { data, error } = await supabase
         .from('clubs')
-        .insert([{ name: newClubName, owner_id: user.id }])
+        .insert([{ name, description, owner_id: user.id }])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          const { data: existing } = await supabase.rpc('get_club_by_name', { club_name: name });
+          const club = Array.isArray(existing) && existing.length > 0 ? existing[0] : null;
+          const msg = club
+            ? `A club with this name already exists: ${club.name} – ${club.description || ''}. Please request to join that club instead (Settings → request to join a club).`
+            : 'A club with this name already exists. Please request to join that club instead (Settings).';
+          setMessage({ type: 'error', text: msg });
+          return;
+        }
+        throw error;
+      }
 
-      setMyClubs(prev => [data, ...prev]);
-      if (isMasterAdmin) setAllClubs(prev => [data, ...prev].sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+      await fetchProfileAndClubs();
       setNewClubName('');
+      setNewClubDescription('');
       setMessage({ type: 'success', text: `Club "${data.name}" created!` });
     } catch (error) {
       setMessage({ type: 'error', text: error.message });
@@ -162,11 +183,20 @@ export default function ClubAdmin() {
             <h3 className="admin-subtitle">{isMasterAdmin ? 'All Clubs' : 'My Clubs'}</h3>
             {isMasterAdmin && <p className="admin-hint">You can manage roster for any club.</p>}
             <form onSubmit={handleCreateClub} className="admin-form">
+              <label className="admin-form-label">Club name (callsign or abbreviation)</label>
               <input
                 type="text"
                 value={newClubName}
                 onChange={(e) => setNewClubName(e.target.value)}
-                placeholder="New Club Name"
+                placeholder="e.g. W1ABC, YCCC"
+                className="settings-input"
+              />
+              <label className="admin-form-label">Description (full name of club) *</label>
+              <input
+                type="text"
+                value={newClubDescription}
+                onChange={(e) => setNewClubDescription(e.target.value)}
+                placeholder="e.g. Yankee Clipper Contest Club"
                 className="settings-input"
               />
               <button type="submit" className="admin-create-btn">Create Club</button>
@@ -184,7 +214,9 @@ export default function ClubAdmin() {
                     onClick={() => setSelectedClub(club)}
                     className={`admin-club-btn ${isSelected ? 'admin-club-btn-selected' : ''}`}
                   >
-                    {club.name}
+                    <span className="admin-club-name">{club.name}</span>
+                    {club.description && <span className="admin-club-desc">{club.description}</span>}
+                    <span className="admin-club-manager">Manager: {club.profiles?.callsign?.trim() || '(no callsign)'}</span>
                     {!isOwner && isMasterAdmin && <span className="admin-badge">manage</span>}
                   </button>
                 );
@@ -196,7 +228,14 @@ export default function ClubAdmin() {
         <div className="admin-main">
           {selectedClub ? (
             <>
-              <h3 className="admin-subtitle">Roster: {selectedClub.name}</h3>
+              <div className="admin-roster-header">
+                <h3 className="admin-subtitle">Roster</h3>
+                <div className="admin-club-summary">
+                  <span className="admin-club-name">{selectedClub.name}</span>
+                  {selectedClub.description && <span className="admin-club-desc">{selectedClub.description}</span>}
+                  <span className="admin-club-manager">Manager: {selectedClub.profiles?.callsign?.trim() || '(no callsign)'}</span>
+                </div>
+              </div>
 
               <form onSubmit={handleAddOperator} className="admin-roster-form">
                 <input

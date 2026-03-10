@@ -112,10 +112,42 @@ export const getModeShapeClass = (mode) => {
 export const STANDARD_BANDS = ['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m', '2m', '70cm'];
 export const STANDARD_MODES = ['CW', 'SSB', 'AM', 'FM', 'RTTY', 'FT8', 'FT4', 'PSK31', 'PSK63', 'JT65', 'JT9'];
 
-function filterByTime(contacts, timeHours) {
-  if (timeHours <= 0) return contacts;
-  const cut = new Date(Date.now() - timeHours * 3600e3);
-  return contacts.filter((c) => new Date(c.created_at) >= cut);
+// Time filter: value in minutes; 0 = All
+const TIME_FILTER_OPTIONS = [
+  { value: 15, label: '15 min' },
+  { value: 30, label: '30 min' },
+  { value: 60, label: '1 hr' },
+  { value: 120, label: '2 hr' },
+  { value: 240, label: '4 hr' },
+  { value: 480, label: '8 hr' },
+  { value: 960, label: '16 hr' },
+  { value: 1440, label: '24 hr' },
+  { value: 2880, label: '48 hr' },
+  { value: 0, label: 'All' },
+];
+
+/** Get contact time as Date: prefer QSO time (qso_date + time_on in UTC), else created_at */
+function getContactTime(c) {
+  let qsoDate = (c.qso_date || '').toString().trim();
+  let timeOn = c.time_on;
+  if (qsoDate && timeOn != null) {
+    if (qsoDate.length === 8 && qsoDate.indexOf('-') === -1) {
+      qsoDate = `${qsoDate.slice(0, 4)}-${qsoDate.slice(4, 6)}-${qsoDate.slice(6, 8)}`;
+    }
+    timeOn = String(timeOn).trim();
+    if (timeOn.length === 5 && timeOn[2] === ':') timeOn += ':00'; // HH:MM -> HH:MM:00
+    const iso = `${qsoDate}T${timeOn}Z`; // Z = UTC; QSO time is always UTC in ADIF
+    const d = new Date(iso);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return new Date(c.created_at || 0);
+}
+
+/** Filter by QSO time (UTC). Cutoff is now_UTC - N minutes; comparison is UTC-to-UTC. */
+function filterByTime(contacts, timeMinutes) {
+  if (timeMinutes <= 0) return contacts;
+  const cut = new Date(Date.now() - timeMinutes * 60 * 1000); // UTC
+  return contacts.filter((c) => getContactTime(c) >= cut);
 }
 
 export default function Map() {
@@ -123,7 +155,7 @@ export default function Map() {
   const [currentUserCall, setCurrentUserCall] = useState(null);
   const [selectedOperator, setSelectedOperator] = useState(null);
   const [operators, setOperators] = useState([]);
-  const [timeHours, setTimeHours] = useState(48);
+  const [timeFilterMinutes, setTimeFilterMinutes] = useState(2880); // 48 hr default
   const [selectedBands, setSelectedBands] = useState(new Set());
   const [selectedModes, setSelectedModes] = useState(new Set());
 
@@ -144,11 +176,12 @@ export default function Map() {
         if (profile) {
           setCurrentUserCall(profile.callsign);
           const config = profile.display_config || { mode: 'self' };
-          const clubIds = config.mode === 'clubs' && config.club_ids
+          const displayMode = String(config.mode || 'self').toLowerCase().trim();
+          const clubIds = displayMode === 'clubs' && config.club_ids
             ? (Array.isArray(config.club_ids) ? config.club_ids : [config.club_ids].filter(Boolean))
             : [];
 
-          if (config.mode === 'public') {
+          if (displayMode === 'public') {
             const { data, error } = await supabase
               .from('contacts')
               .select('*')
@@ -156,15 +189,24 @@ export default function Map() {
               .limit(1000);
             if (error) console.error('contacts (public):', error);
             if (data) fetchedContacts = data;
+            // Ensure current user's personal contacts are included (merge by id, then sort by created_at)
+            if (profile.callsign?.trim()) {
+              const { data: selfData } = await supabase.rpc('get_display_logs', { filter_mode: 'self', filter_value: profile.callsign.trim() });
+              if (selfData?.length) {
+                const ids = new Set((fetchedContacts || []).map((c) => c.id));
+                const extra = (selfData || []).filter((c) => !ids.has(c.id));
+                fetchedContacts = [...(fetchedContacts || []), ...extra].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              }
+            }
           } else if (clubIds.length > 0) {
             const { data, error } = await supabase.rpc('get_display_logs_clubs', { club_ids: clubIds });
             if (error) console.error('get_display_logs_clubs:', error);
             if (data && Array.isArray(data)) fetchedContacts = data;
-          } else if (config.mode === 'club' && config.target_id) {
+          } else if (displayMode === 'club' && config.target_id) {
             const { data, error } = await supabase.rpc('get_display_logs', { filter_mode: 'club', filter_value: config.target_id });
             if (error) console.error('get_display_logs:', error);
             if (data) fetchedContacts = data;
-          } else if (config.mode === 'self' && profile.callsign) {
+          } else if (displayMode === 'self' && profile.callsign) {
             const { data, error } = await supabase.rpc('get_display_logs', { filter_mode: 'self', filter_value: profile.callsign });
             if (error) console.error('get_display_logs:', error);
             if (data) fetchedContacts = data;
@@ -220,7 +262,7 @@ export default function Map() {
   const modeMatches = (cMode, selMode) => norm(cMode).startsWith(norm(selMode)) || norm(selMode).startsWith(norm(cMode));
 
   const filteredContacts = (() => {
-    let list = filterByTime(contacts, timeHours);
+    let list = filterByTime(contacts, timeFilterMinutes);
     if (selectedBands.size > 0) list = list.filter((c) => c.band && [...selectedBands].some((b) => bandMatches(c.band, b)));
     if (selectedModes.size > 0) list = list.filter((c) => c.mode && [...selectedModes].some((m) => modeMatches(c.mode, m)));
     return list;
@@ -249,28 +291,33 @@ export default function Map() {
     });
   };
 
-  // Group contacts by same location + contacted + band + mode; one marker per group for reliable popups
-  const contactGroups = useMemo(() => {
-    const key = (c) => {
-      const pos = getContactPosition(c);
-      if (!pos) return null;
+  // One marker per location (round to 4 decimals); popup shows ALL contact groups at that point
+  const locationGroups = useMemo(() => {
+    const posKey = (pos) => `${pos[0].toFixed(4)},${pos[1].toFixed(4)}`;
+    const eventKey = (c) => {
       const ca = (c.contacted_callsign || '').trim();
       const band = (c.band || '').trim();
       const mode = (c.mode || '').trim();
-      return `${pos[0].toFixed(5)},${pos[1].toFixed(5)}|${ca}|${band}|${mode}`;
+      return `${ca}|${band}|${mode}`;
     };
-    const groupMap = new MapData();
+    const byLocation = new MapData(); // positionKey -> { position, byEvent: Map eventKey -> contacts[] }
     for (const c of filteredContacts) {
-      const k = key(c);
-      if (!k) continue;
-      if (!groupMap.has(k)) groupMap.set(k, []);
-      groupMap.get(k).push(c);
+      const pos = getContactPosition(c);
+      if (!pos) continue;
+      const pk = posKey(pos);
+      if (!byLocation.has(pk)) byLocation.set(pk, { position: pos, byEvent: new MapData() });
+      const entry = byLocation.get(pk);
+      const ek = eventKey(c);
+      if (!entry.byEvent.has(ek)) entry.byEvent.set(ek, []);
+      entry.byEvent.get(ek).push(c);
     }
-    return Array.from(groupMap.entries()).map(([groupKey, list]) => {
-      const sorted = [...list].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      const first = sorted[0];
-      const position = getContactPosition(first);
-      return { groupKey, position, contacts: sorted, first };
+    return Array.from(byLocation.entries()).map(([positionKey, entry]) => {
+      const groups = Array.from(entry.byEvent.entries()).map(([eventKey, list]) => {
+        const sorted = [...list].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        return { eventKey, contacts: sorted, first: sorted[0] };
+      });
+      const totalContacts = groups.reduce((sum, g) => sum + g.contacts.length, 0);
+      return { positionKey, position: entry.position, groups, totalContacts };
     }).filter((g) => g.position);
   }, [filteredContacts]);
 
@@ -283,21 +330,18 @@ export default function Map() {
           <h3>FILTERS</h3>
         </div>
         <div className="map-filters">
-          <label className="map-filter-label">Time: {timeHours <= 0 ? 'All' : `Last ${timeHours}h`}</label>
-          <div className="map-time-slider-wrap">
-            <input
-              type="range"
-              min={0}
-              max={48}
-              value={timeHours <= 0 ? 0 : Math.min(48, timeHours)}
-              onChange={(e) => setTimeHours(e.target.value === '0' ? 0 : Number(e.target.value))}
-              className="map-time-slider"
-            />
-            <div className="map-time-slider-labels">
-              <span>All</span>
-              <span>48h</span>
-            </div>
-          </div>
+          <label className="map-filter-label">Time</label>
+          <select
+            value={timeFilterMinutes}
+            onChange={(e) => setTimeFilterMinutes(Number(e.target.value))}
+            className="map-time-select"
+          >
+            {TIME_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
           <label className="map-filter-label">Band</label>
           <div className="map-filter-buttons">
             {bandOptions.map((b) => (
@@ -329,7 +373,7 @@ export default function Map() {
           </div>
         </div>
         <div className="map-sidebar-header">
-          <h3>ACTIVE OPERATORS ({filteredContacts.length})</h3>
+          <h3>ACTIVE OPERATORS ({filteredOperators.length})</h3>
         </div>
         <div className="map-sidebar-list">
           {filteredOperators.length === 0 && <div className="map-sidebar-empty">No operators in range</div>}
@@ -374,15 +418,16 @@ export default function Map() {
 
         <LayersControl.Overlay checked name="Contacts">
           <LayerGroup>
-            {contactGroups.map((group) => {
-        const { groupKey, position, contacts, first } = group;
-        const hasSelectedOp = selectedOperator && contacts.some((c) => c.operator_callsign === selectedOperator);
+            {locationGroups.map((loc) => {
+        const { positionKey, position, groups, totalContacts } = loc;
+        const hasSelectedOp = selectedOperator && groups.some((g) => g.contacts.some((c) => c.operator_callsign === selectedOperator));
         const isDimmed = selectedOperator && !hasSelectedOp;
         const opacity = isDimmed ? 0.25 : 1.0;
         const zIndexOffset = hasSelectedOp ? 1000 : 0;
 
-        const color = getBandColor(first.band);
-        const shapeClass = getModeShapeClass(first.mode);
+        const firstGroup = groups[0];
+        const color = getBandColor(firstGroup.first.band);
+        const shapeClass = getModeShapeClass(firstGroup.first.mode);
         const size = hasSelectedOp ? 14 : 8;
         const anchor = size / 2;
         const highlightClass = hasSelectedOp ? 'marker-highlight' : '';
@@ -396,21 +441,30 @@ export default function Map() {
         });
 
         const maxOps = 4;
-        const ops = contacts.slice(0, maxOps).map((c) => c.operator_callsign).join(' ');
-        const more = contacts.length > maxOps ? ` +${contacts.length - maxOps} more` : '';
-        const rst = first.rst_rcvd ?? first.rst_received ?? '';
-        const line = `${ops}${more} | ${(first.contacted_callsign || '').trim()} | ${(first.band || '').trim()} | ${(first.mode || '').trim()} | ${rst}`.trim();
+        const popupLines = groups.map((g) => {
+          const ops = g.contacts.slice(0, maxOps).map((c) => c.operator_callsign).join(' ');
+          const more = g.contacts.length > maxOps ? ` +${g.contacts.length - maxOps} more` : '';
+          const rst = g.first.rst_rcvd ?? g.first.rst_received ?? '';
+          return `${ops}${more} | ${(g.first.contacted_callsign || '').trim()} | ${(g.first.band || '').trim()} | ${(g.first.mode || '').trim()} | ${rst}`.trim();
+        });
 
         return (
           <Marker
-            key={groupKey}
+            key={positionKey}
             position={position}
             icon={customIcon}
             opacity={opacity}
             zIndexOffset={zIndexOffset}
           >
             <Popup className="map-contact-popup">
-              <span className="map-contact-popup-line">{line}</span>
+              <div className="map-contact-popup-inner">
+                <div className="map-contact-popup-title">{totalContacts} contact{totalContacts !== 1 ? 's' : ''} at this point</div>
+                <div className="map-contact-popup-list">
+                  {popupLines.map((line, i) => (
+                    <div key={i} className="map-contact-popup-line">{line}</div>
+                  ))}
+                </div>
+              </div>
             </Popup>
           </Marker>
         );

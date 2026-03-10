@@ -1,5 +1,7 @@
 # QSOlive Architecture
 
+**Part of the core docs:** [Documentation index](README.md) · [Client setup](client-setup.md) · [Database setup](database-setup.md) · [Deployment](deployment.md)
+
 ## Overview
 
 QSOlive uses a serverless, real-time architecture designed for scalability and simplicity. The system handles real-time ham radio contact data from multiple operators and displays it on an interactive map.
@@ -37,7 +39,7 @@ QSOlive uses a serverless, real-time architecture designed for scalability and s
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │ PostgreSQL 15 + PostGIS                                │ │
 │  │  - Contacts table (with geography column)             │ │
-│  │  - Operators table                                     │ │
+│  │  - Profiles, clubs, club_roster (display/roster)      │ │
 │  │  - Indexes on callsign, timestamp, operator           │ │
 │  │  - Row-level security policies                        │ │
 │  └────────────────────────────────────────────────────────┘ │
@@ -260,6 +262,37 @@ const { data: contacts } = await supabase
   .limit(1000)
 ```
 
+## Settings, clubs, and roster
+
+Who is shown on the map is controlled by the **logged-in user’s profile**: `profiles.display_config` (Settings). Clubs group operators; the map can show one user’s contacts, one club’s roster, or up to four clubs (union of rosters).
+
+### Settings and display configuration
+
+- **Display user:** The authenticated user has a **profile** (`profiles`: callsign, `display_config`). They choose what to monitor:
+  - **My contacts only** – `display_config.mode = "self"`, `target_id` = user’s callsign. Map shows contacts where `operator_callsign` = that callsign.
+  - **One club** – `mode = "club"`, `target_id` = club UUID. Map shows contacts for all operators in that club’s roster.
+  - **Multiple clubs (up to 4)** – `mode = "clubs"`, `club_ids` = array of UUIDs. Map shows contacts for operators in **any** of those clubs’ rosters.
+- **RPCs:** `get_display_logs(filter_mode, filter_value)` for self or single club; `get_display_logs_clubs(club_ids)` for multiple clubs. Frontend also subscribes to `contacts` for real-time updates.
+- **Requirements:** User can set/edit callsign and monitoring mode; select one club or up to 4 clubs; save updates `profiles.callsign` and `profiles.display_config`. Settings are per user (RLS); not logged in ⇒ show “Sign in to configure display”.
+
+### Club Admin and roster
+
+- **Clubs:** Each club has **name** (short, unique identifier), **description** (required, full name or description), and **owner_id** (profile that administers it). **Roster** = `club_roster`: which callsigns belong to which club (unique per club_id + callsign).
+- **Who can manage:** **Club owner** can update club and manage roster for their clubs. **Master admin** (`profiles.role = 'master_admin'`) can manage roster (and optionally edit club details) for **any** club. Set master admin via SQL: `update profiles set role = 'master_admin' where id = '<uuid>';`. Per-club managers are deferred (no `club_managers` table).
+- **Club Admin UI:** “My Clubs” (clubs you own) and, for master admin, “All clubs” / “Manage roster”. For a selected club: add/remove callsigns (no duplicates), show roster as list (callsign, date added, remove). Create club: name + description; owner = current user. Must be logged in to create/add/remove.
+
+### Club uniqueness
+
+- **Unique name:** One canonical name per club. Enforced by unique index on `lower(trim(clubs.name))` (case-insensitive, trimmed). **Description** is required (NOT NULL, default `''`).
+- **Create flow:** User enters name + description; frontend trims both. On insert, if Postgres returns **23505** (unique_violation), show: “A club with this name already exists. Please join the existing club instead.” (e.g. link to Request to join). Optional RPC `get_club_by_name(name)` returns the existing club for a friendly “join that club” message.
+- **Club Admin display:** List and roster panel show club **name**, **description**, and **manager** (owner’s callsign from `profiles`). Create form: “Club name (abbreviation or callsign)” + “Full name or description”.
+
+### Request to join a club
+
+- **Goal:** A user can request that their callsign be added to a club. The request is delivered to the **club owner** (e.g. by email) so they can add the callsign in Club Admin.
+- **Phase 1 (mailto):** In Settings, “Request to join a club” opens a form: select club, callsign (default from profile), optional message. On submit, open **mailto:** owner’s `profiles.email` with subject/body (club name, callsign, message). No backend email service; if owner has no email, show “No contact email for this club.”
+- **Phase 2 (optional):** Table `club_join_requests` (club_id, callsign, requester_id, message, status, reviewed_at, reviewed_by) and “Pending requests” in Club Admin with Approve/Deny. Omit in Phase 1.
+
 ## Deployment Architecture
 
 ### Development Environment
@@ -350,7 +383,7 @@ Allow/Deny access
 **Server-side** (PostgreSQL constraints):
 - NOT NULL constraints on required fields
 - CHECK constraints on frequency ranges
-- Foreign key constraints for operators
+- NOT NULL and CHECK constraints on contacts
 
 ## Monitoring & Observability
 
@@ -397,9 +430,9 @@ pg_dump -h db.xxx.supabase.co \
 ### Database Indexes
 
 ```sql
--- Most common query patterns
-CREATE INDEX idx_recent_contacts 
-  ON contacts (created_at DESC, operator_callsign);
+-- Most common query patterns (contacts table)
+CREATE INDEX idx_contacts_operator_recent 
+  ON contacts (operator_callsign, created_at DESC);
 
 CREATE INDEX idx_mode_band 
   ON contacts (mode, band) 
@@ -437,3 +470,12 @@ CREATE INDEX idx_mode_band
 - **CDN**: Store contact history as static JSON for fast loading
 - **GraphQL**: More flexible querying than REST
 - **Offline support**: Service worker for PWA capabilities
+
+---
+
+## Related documentation
+
+- **[Client setup](client-setup.md)** – Install and configure the Windows client; build the executable and installer.
+- **[Database setup](database-setup.md)** – Create the Supabase project, schema, RLS, and functions.
+- **[Deployment](deployment.md)** – Dev vs prod, Vercel, Supabase CLI, release process.
+- **[Documentation index](README.md)** – Overview of all core docs.

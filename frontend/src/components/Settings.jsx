@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [myClubs, setMyClubs] = useState([]);
   const [clubs, setClubs] = useState([]);
   
   const MAX_CLUBS = 4;
@@ -41,7 +44,14 @@ export default function Settings() {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
 
-      if (!user) return;
+      if (!user) {
+        setCurrentUser(null);
+        setMyClubs([]);
+        setLoading(false);
+        return;
+      }
+
+      setCurrentUser(user);
 
       // 1. Fetch Profile
       const { data: profile, error: profileError } = await supabase
@@ -61,6 +71,28 @@ export default function Settings() {
       if (clubsError) throw clubsError;
 
       setClubs(clubsData || []);
+
+      // 2b. Fetch clubs the user is part of (callsign on roster)
+      const userCallsign = (profile?.callsign || '').trim().toUpperCase();
+      if (userCallsign) {
+        const { data: rosterRows, error: rosterError } = await supabase
+          .from('club_roster')
+          .select('club_id')
+          .eq('callsign', userCallsign);
+        if (!rosterError && rosterRows?.length > 0) {
+          const clubIds = [...new Set(rosterRows.map((r) => r.club_id))];
+          const { data: myClubsData, error: myClubsError } = await supabase
+            .from('clubs')
+            .select('id, name, description')
+            .in('id', clubIds)
+            .order('name');
+          if (!myClubsError) setMyClubs(myClubsData || []);
+        } else {
+          setMyClubs([]);
+        }
+      } else {
+        setMyClubs([]);
+      }
 
       // 3. Set Form State
       if (profile) {
@@ -256,6 +288,26 @@ export default function Settings() {
         )}
 
         <button type="button" onClick={handleSave} disabled={saving} className="settings-submit">{saving ? 'SAVING...' : 'SAVE CONFIGURATION'}</button>
+
+        {currentUser && (
+          <div className="settings-my-clubs-block">
+            <h3 className="settings-my-clubs-title">My Clubs</h3>
+            <p className="settings-my-clubs-desc">Clubs you&apos;re part of (your callsign is on the roster). Request to join more via the link below.</p>
+            {myClubs.length === 0 ? (
+              <p className="settings-my-clubs-empty">You&apos;re not on any club roster yet. Request to join a club below, or create one in Club Admin.</p>
+            ) : (
+              <ul className="settings-my-clubs-list">
+                {myClubs.map((club) => (
+                  <li key={club.id}>
+                    <span className="settings-my-club-name">{club.name}</span>
+                    {club.description && <span className="settings-my-club-desc"> – {club.description}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link to="/admin" className="settings-my-clubs-link">Go to Club Admin</Link>
+          </div>
+        )}
 
         <div className="settings-request-block">
           {!showRequestForm ? (
