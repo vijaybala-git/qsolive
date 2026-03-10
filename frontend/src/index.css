@@ -18,6 +18,19 @@ body {
   color: #22c55e;
 }
 
+.app-dev-banner {
+  flex-shrink: 0;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background: #b45309;
+  color: #fff;
+  font-family: ui-monospace, monospace;
+}
+
 .app-header {
   flex-shrink: 0;
   padding: 1rem;
@@ -270,6 +283,39 @@ body {
   color: #4b5563;
   font-family: ui-monospace, monospace;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.app-footer-sep {
+  color: #374151;
+}
+
+.app-env-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.app-env-badge--dev {
+  background: #b45309;
+  color: #fff;
+}
+
+.app-env-badge--prod {
+  background: #14532d;
+  color: #86efac;
+}
+
+.app-env-branch {
+  color: #9ca3af;
+  font-size: 0.7rem;
 }
 
 /* Help pages (About, User Guide) */
