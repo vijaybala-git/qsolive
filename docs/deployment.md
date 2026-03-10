@@ -138,7 +138,10 @@ This guide describes how to deploy QSOlive in **development** and **production**
 | VITE_SUPABASE_ANON_KEY | Dev anon key | Prod anon key |
 | Client (Windows) | config points at dev | Built with prod URL/key for distributable |
 
-*(Optional: add a short “How to tell which env you’re on” – e.g. URL, or a small DEV badge in the UI.)*
+### How to tell which env you're on
+
+- **Frontend:** Footer shows a badge **DEV** (orange) or **PROD** (green) and, in dev, the git branch (e.g. `main`). Set `VITE_APP_ENV=dev` or `VITE_APP_ENV=prod` in Vercel (Preview vs Production) and in local `.env.local`; branch is injected at build from `VERCEL_GIT_COMMIT_REF` or `GIT_BRANCH`.
+- **Client:** On startup the client logs and prints one line: `[DEV] Branch: main | DB: <project-ref>` or `[PROD] Branch: release | DB: <project-ref>`. Set `BUILD_LABEL` and `BUILD_BRANCH` in `build_config.py` (or `environment` / `git_branch` in `config.json`) for explicit values; otherwise the client infers env from the Supabase URL and branch from git or `release`.
 
 ---
 

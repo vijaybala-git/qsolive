@@ -47,10 +47,18 @@ function HelpMenu() {
 
 function App() {
   const version = packageJson.version || '1.0.0';
+  const appEnv = typeof __APP_ENV__ !== 'undefined' ? __APP_ENV__ : (import.meta.env.VITE_APP_ENV || 'dev');
+  const gitBranch = typeof __GIT_BRANCH__ !== 'undefined' ? __GIT_BRANCH__ : (import.meta.env.VITE_GIT_BRANCH || '');
+  const isDev = appEnv === 'dev';
 
   return (
     <Router>
       <div className="app-root">
+        {isDev && (
+          <div className="app-dev-banner" role="alert">
+            DEMO and SYNTHETIC DATA — NO ACTUAL CONTACTS
+          </div>
+        )}
         <Header />
         <nav className="app-nav">
           <Link to="/">MAP DISPLAY</Link>
@@ -70,7 +78,20 @@ function App() {
           </Routes>
         </main>
         <footer className="app-footer">
-          QSOlive v{version} | Connected to Supabase
+          <span>QSOlive v{version}</span>
+          <span className="app-footer-sep">|</span>
+          <span
+            className={`app-env-badge app-env-badge--${appEnv}`}
+            title={isDev && gitBranch ? `Branch: ${gitBranch}` : `Environment: ${appEnv.toUpperCase()}`}
+          >
+            {appEnv.toUpperCase()}
+          </span>
+          {isDev && gitBranch && (
+            <>
+              <span className="app-footer-sep">|</span>
+              <span className="app-env-branch" title="Git branch">{gitBranch}</span>
+            </>
+          )}
         </footer>
       </div>
     </Router>

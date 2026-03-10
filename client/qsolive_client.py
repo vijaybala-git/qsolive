@@ -18,9 +18,14 @@ import maidenhead as mh
 # Built-in Supabase (hidden from user). Set via build_config.py at build time, or env for dev.
 try:
     from build_config import BUILTIN_SUPABASE_URL, BUILTIN_SUPABASE_KEY  # type: ignore
+    import build_config as _bc  # type: ignore
+    _BUILD_LABEL = getattr(_bc, 'BUILD_LABEL', None)
+    _BUILD_BRANCH = getattr(_bc, 'BUILD_BRANCH', None)
 except ImportError:
     BUILTIN_SUPABASE_URL = os.environ.get('QSOLIVE_SUPABASE_URL', '')
     BUILTIN_SUPABASE_KEY = os.environ.get('QSOLIVE_SUPABASE_KEY', '')
+    _BUILD_LABEL = os.environ.get('QSOLIVE_ENV')
+    _BUILD_BRANCH = os.environ.get('QSOLIVE_BRANCH')
 
 
 def _config_path() -> str:
@@ -59,6 +64,51 @@ def load_config() -> Dict:
 
 
 config = load_config()
+
+
+def _get_env_display() -> tuple:
+    """Return (env_label, branch) for startup display. env_label is 'DEV' or 'PROD'; branch may be empty."""
+    label = (_BUILD_LABEL or config.get('environment') or '').strip().upper() or None
+    if not label and config.get('supabase_url'):
+        url = config['supabase_url']
+        if 'supabase.co' in url:
+            try:
+                ref = url.replace('https://', '').split('.')[0]
+                label = 'PROD' if ref and 'dev' not in ref.lower() else 'DEV'
+            except Exception:
+                label = 'DEV'
+        else:
+            label = 'DEV'
+    if not label:
+        label = 'DEV'
+    branch = _BUILD_BRANCH or config.get('git_branch') or ''
+    if not branch:
+        try:
+            import subprocess
+            r = subprocess.run(
+                ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                capture_output=True, text=True, timeout=2, cwd=os.path.dirname(os.path.abspath(__file__))
+            )
+            if r.returncode == 0 and r.stdout:
+                branch = r.stdout.strip()
+        except Exception:
+            pass
+    if not branch:
+        branch = 'release'
+    env_display = 'PROD' if label == 'PROD' else 'DEV'
+    return (env_display, branch)
+
+
+def _get_db_display() -> str:
+    """Short Supabase DB identifier for logs (e.g. project ref or host)."""
+    url = config.get('supabase_url') or ''
+    if not url:
+        return 'none'
+    try:
+        host = url.replace('https://', '').split('/')[0]
+        return host.split('.')[0] if 'supabase.co' in host else host
+    except Exception:
+        return 'supabase'
 
 # Setup logging
 logging.basicConfig(
@@ -269,11 +319,15 @@ class QSOliveClient:
     
     def run(self):
         """Main run loop"""
+        env_label, branch = _get_env_display()
+        db_display = _get_db_display()
         logger.info("=" * 60)
         logger.info("QSOlive Client Started")
+        logger.info("[%s] Branch: %s | DB: %s", env_label, branch, db_display)
         logger.info(f"Operator: {self.config.get('operator_callsign')}")
         logger.info(f"Supabase: {self.config.get('supabase_url')}")
         logger.info("=" * 60)
+        print(f"QSOlive [%s] branch=%s db=%s" % (env_label, branch, db_display))
         
         self.setup_udp_listener()
         
