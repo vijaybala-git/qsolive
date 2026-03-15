@@ -1,0 +1,42 @@
+QSOlive Client - Next steps: configure your logging software
+================================================================
+
+Your callsign is set. To send contacts from your logger to QSOlive:
+
+1. Open your ham radio logging program (N1MM, Win-Test, Logger32, DXLog, etc.).
+
+2. Enable "UDP broadcast" or "Send QSO via UDP" and set:
+   - Host: 127.0.0.1  (or localhost)
+   - Port: 2337
+   - Format: ADIF
+
+3. Start QSOlive Client (from Start Menu or desktop). Keep it running while you operate.
+
+4. View your contacts on the map at: https://qsolive.vercel.app
+
+
+Logger-specific notes
+--------------------
+
+N1MM Logger+
+  Config → Configure Ports, Mode Control → Broadcast Data
+  Check "Contact", IP 127.0.0.1, Port 2337, Format ADIF.
+
+Win-Test
+  Options → Interfaces → Add UDP, Host localhost, Port 2337, Format ADIF.
+
+Logger32
+  Setup → Options → UDP: enable, Port 2337, Format ADIF.
+
+DXLog
+  Options → Network Setup: enable Broadcast, Port 2337, Format ADIF.
+
+
+Need to change your callsign?
+  Use Start Menu → "Edit config (advanced)" and edit operator_callsign.
+
+Log file and crash log (if the app fails to start)
+  When installed for "all users", the log and crash file are in:
+  %LOCALAPPDATA%\QSOlive
+  (e.g. C:\Users\YourName\AppData\Local\QSOlive\qsolive_client.log)
+  The app also prints the path in the console when it starts.

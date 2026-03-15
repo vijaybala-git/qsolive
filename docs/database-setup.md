@@ -540,6 +540,15 @@ COMMENT ON COLUMN contacts.my_location IS 'Geographic location of operator (Post
 COMMENT ON TABLE contact_stats IS 'Aggregated statistics for performance';
 ```
 
+### Duplicate prevention (same QSO)
+
+To avoid duplicate contacts when the same QSO is sent via both the UDP client and ADIF upload (or the same file uploaded twice), apply the migration in `supabase/migrations/20260221000000_contacts_dedup_unique.sql`. It:
+
+- Normalizes `mode` to `''` when NULL and adds a unique constraint on `(operator_callsign, contacted_callsign, qso_date, time_on, mode)`.
+- Removes existing duplicate rows (keeps one per key), then adds the constraint.
+
+The UDP client treats 409/23505 as success (duplicate skipped). The frontend ADIF upload uses `upsert(..., { onConflict: 'operator_callsign,contacted_callsign,qso_date,time_on,mode', ignoreDuplicates: true })`.
+
 ## Step 4: Verify Installation
 
 Run this query to verify everything is set up correctly:

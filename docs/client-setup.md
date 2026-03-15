@@ -77,7 +77,7 @@ For **development**, create `config.json` (or copy `config.example.json`). If yo
   "supabase_url": "https://your-project.supabase.co",
   "supabase_key": "your-service-role-key",
   "operator_callsign": "W6VIJ",
-  "udp_port": 2237,
+  "udp_port": 2337,
   "udp_host": "0.0.0.0",
   "update_interval": 1,
   "retry_attempts": 3,
@@ -476,9 +476,15 @@ End users only provide their **callsign** during install; Supabase configuration
 
 ### 1. Build the executable (with built-in Supabase)
 
+Supabase URL and key are chosen **at build time** from the **current git branch** (or `QSOLIVE_BUILD_BRANCH`):
+- **Branch `prod`** → built-in PROD URL and key (for production installer).
+- **Branch `main` or anything else** → built-in DEV URL and key.
+
 1. **Add built-in Supabase credentials** (one-time per build):
    - Copy `client/build_config.example.py` to `client/build_config.py`.
-   - Set `BUILTIN_SUPABASE_URL` and `BUILTIN_SUPABASE_KEY` in `build_config.py` (use your project URL and service_role or anon key). Do not commit `build_config.py` (it is in `.gitignore`).
+   - In `build_config.py`, set **dev** and **prod** credentials:
+     - **Option A (env vars, keeps secrets out of repo):** set `QSOLIVE_DEV_URL`, `QSOLIVE_DEV_KEY`, `QSOLIVE_PROD_URL`, `QSOLIVE_PROD_KEY` before building. Optional: `QSOLIVE_BUILD_BRANCH=prod` to force prod without checking out `prod`.
+     - **Option B:** Edit `build_config.py` and set `DEV_URL`, `DEV_KEY`, `PROD_URL`, `PROD_KEY` (or the env defaults in the file). Do not commit `build_config.py` (it is in `.gitignore`).
 
 2. **Install PyInstaller** (if needed):
    ```bash
@@ -486,10 +492,12 @@ End users only provide their **callsign** during install; Supabase configuration
    ```
 
 3. **Build the executable**:
-   ```bash
-   cd client
-   pyinstaller --clean QSOlive.spec
-   ```
+   - **For DEV (main / feature branches):** check out `main` (or any non-`prod` branch), then:
+     ```bash
+     cd client
+     pyinstaller --clean QSOlive.spec
+     ```
+   - **For PROD:** check out `prod`, then run the same command. The exe will use the prod Supabase project.
    Output: `client/dist/QSOlive.exe`
 
 ### 2. Create Windows Installer with Inno Setup
@@ -516,7 +524,7 @@ End users only provide their **callsign** during install; Supabase configuration
    - Copies `config.example.json` as `config.json` only on first install; upgrades do not overwrite existing config.
    - Creates Start Menu shortcuts: **QSOlive Client**, **Configure your logger** (opens `NextSteps.txt`), **Edit config (advanced)**, and Uninstall.
    - Optional desktop shortcut (checkbox during install).
-   - Shows the "Next steps" text on the completion page and optionally opens **Configure your logger** so the user can set up their logging software (UDP port 2237, ADIF).
+   - Shows the "Next steps" text on the completion page and optionally opens **Configure your logger** so the user can set up their logging software (UDP port 2337, ADIF).
 
 **Updating the version:** Edit the `#define MyAppVersion "1.0"` line at the top of `client/QSOlive.iss`, then recompile.
 

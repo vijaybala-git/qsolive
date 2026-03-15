@@ -115,7 +115,7 @@ begin
     begin
       Json := '{' + #13#10 +
         '  "operator_callsign": "' + Call + '",' + #13#10 +
-        '  "udp_port": 2237,' + #13#10 +
+        '  "udp_port": 2337,' + #13#10 +
         '  "udp_host": "0.0.0.0",' + #13#10 +
         '  "update_interval": 1,' + #13#10 +
         '  "retry_attempts": 3,' + #13#10 +

@@ -121,7 +121,7 @@ This guide describes how to deploy QSOlive in **development** and **production**
   - Bump version in `frontend/package.json` and in About / User Guide if needed.
 - **6.2 Cut release**
   - Create tag (e.g. `v1.0.0`).
-  - Apply migrations to prod (Supabase CLI).
+  - Merge to `prod` (or push to `prod`); GitHub Actions applies migrations to prod automatically (see §8).
   - Trigger Vercel production deploy from that tag/branch.
 - **6.3 Post-release**
   - *(To be filled: how to do hotfixes, next release cycle.)*
@@ -145,9 +145,41 @@ This guide describes how to deploy QSOlive in **development** and **production**
 
 ---
 
-## 8. Future improvements
+## 8. Automated migrations (main → dev, prod → prod)
 
-- Run Supabase migrations in CI (e.g. GitHub Actions) for prod.
+Migrations are applied automatically by GitHub Actions so that **main** stays in sync with **dev** and **prod** with **prod**.
+
+### 8.1 Workflow behaviour
+
+| Branch | Target DB | Trigger |
+|--------|-----------|--------|
+| **main** | Dev Supabase | Push to `main` when `supabase/migrations/**` or this workflow changed |
+| **prod** | Prod Supabase | Push to `prod` when `supabase/migrations/**` or this workflow changed |
+
+**Typical flow:**
+
+1. Create or edit migrations under `supabase/migrations/`.
+2. Merge/push to **main** → workflow runs and applies migrations to **dev**. Test in dev (local + Vercel preview).
+3. When ready for production, merge **main** into **prod** (or push to `prod`) → workflow runs and applies migrations to **prod**.
+
+The workflow only runs when migration files (or `.github/workflows/supabase-migrate.yml`) change, so other pushes to `main` or `prod` do not re-run migrations.
+
+### 8.2 Required GitHub secrets
+
+In the repo: **Settings → Secrets and variables → Actions**, add:
+
+| Secret | Description |
+|--------|-------------|
+| `SUPABASE_ACCESS_TOKEN` | Personal access token from [Supabase Account → Access Tokens](https://supabase.com/dashboard/account/tokens). Used by the CLI in CI. |
+| `SUPABASE_PROJECT_REF_DEV` | Dev project ref (e.g. from dashboard URL: `https://supabase.com/dashboard/project/<ref>` or **Settings → General → Reference ID**). |
+| `SUPABASE_PROJECT_REF_PROD` | Prod project ref (same as above, for the prod project). |
+
+Workflow file: `.github/workflows/supabase-migrate.yml`.
+
+---
+
+## 9. Future improvements
+
 - Smoke tests after deploy (e.g. Playwright/Cypress).
 - *(Other ideas as we approach 1.0.)*
 

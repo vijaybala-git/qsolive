@@ -31,6 +31,17 @@ export function adifRecordToContact(record, operatorCallsign, rawAdif = '') {
   if (!record || !record.CALL || !record.CALL.trim()) {
     return { error: 'Missing CALL' };
   }
+  const mode = (record.MODE && record.MODE.trim()) || '';
+  if (!mode) {
+    return { error: 'Missing MODE' };
+  }
+  if (!record.FREQ || !record.FREQ.trim()) {
+    return { error: 'Missing FREQ' };
+  }
+  const freq = parseFloat(record.FREQ);
+  if (!Number.isFinite(freq)) {
+    return { error: 'Invalid FREQ' };
+  }
   const op = (operatorCallsign || '').trim() || 'UNKNOWN';
   let qsoDate = (record.QSO_DATE || nowDate()).trim();
   let timeOn = (record.TIME_ON || nowTime()).trim();
@@ -48,13 +59,10 @@ export function adifRecordToContact(record, operatorCallsign, rawAdif = '') {
     qso_date: qsoDate,
     time_on: timeOn,
     operator_callsign: op,
+    mode,
+    frequency: freq,
   };
   if (record.BAND) contact.band = record.BAND.trim();
-  if (record.MODE) contact.mode = record.MODE.trim();
-  if (record.FREQ) {
-    const f = parseFloat(record.FREQ);
-    if (Number.isFinite(f)) contact.frequency = f;
-  }
   if (record.RST_SENT) contact.rst_sent = record.RST_SENT.trim();
   if (record.RST_RCVD) contact.rst_rcvd = record.RST_RCVD.trim();
   if (record.GRIDSQUARE) {

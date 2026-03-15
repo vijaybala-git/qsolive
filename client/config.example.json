@@ -1,6 +1,6 @@
 {
   "operator_callsign": "YOUR_CALL",
-  "udp_port": 2237,
+  "udp_port": 2337,
   "udp_host": "0.0.0.0",
   "update_interval": 1,
   "retry_attempts": 3,

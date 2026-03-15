@@ -14,7 +14,7 @@ export default function UploadAdif() {
   const [fileError, setFileError] = useState(null);
   const [parsed, setParsed] = useState(null); // { contacts, errors }
   const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState(null); // { inserted, failed, errorMessage? }
+  const [result, setResult] = useState(null); // { inserted, skipped, failed, invalidCount, errorMessage? }
 
   useEffect(() => {
     let mounted = true;
@@ -90,20 +90,27 @@ export default function UploadAdif() {
     setUploading(true);
     setResult(null);
     let inserted = 0;
+    let skipped = 0;
     let failed = 0;
     let errorMessage = null;
+    const invalidCount = parsed.errors?.length ?? 0;
+    const CONFLICT_COLS = 'operator_callsign,contacted_callsign,qso_date,time_on,mode,frequency';
     for (let i = 0; i < parsed.contacts.length; i += BATCH_SIZE) {
       const batch = parsed.contacts.slice(i, i + BATCH_SIZE);
-      const { error } = await supabase.from('contacts').insert(batch);
+      const { data, error } = await supabase
+        .from('contacts')
+        .upsert(batch, { onConflict: CONFLICT_COLS, ignoreDuplicates: true })
+        .select('id');
       if (error) {
         failed += batch.length;
         errorMessage = error.message || error.code || String(error);
-        console.error('Upload batch error:', error);
       } else {
-        inserted += batch.length;
+        const insertedInBatch = data?.length ?? 0;
+        inserted += insertedInBatch;
+        skipped += batch.length - insertedInBatch;
       }
     }
-    setResult({ inserted, failed, errorMessage });
+    setResult({ inserted, skipped, failed, invalidCount, errorMessage });
     setUploading(false);
   };
 
@@ -148,7 +155,7 @@ export default function UploadAdif() {
           <div className="upload-summary">
             <span>Parsed: {parsed.contacts.length} contact(s)</span>
             {parsed.errors.length > 0 && (
-              <span className="upload-err-count">, {parsed.errors.length} skipped (e.g. missing CALL)</span>
+              <span className="upload-err-count">, {parsed.errors.length} not inserted (missing CALL, MODE or FREQ)</span>
             )}
           </div>
           {parsed.errors.length > 0 && parsed.errors.length <= 10 && (
@@ -174,7 +181,7 @@ export default function UploadAdif() {
       {result && (
         <div className="upload-result">
           <p className={`upload-message ${result.failed > 0 ? 'upload-error' : 'upload-success'}`}>
-            Done. Inserted: {result.inserted}. {result.failed > 0 ? `Failed: ${result.failed}.` : ''}
+            Done. Inserted: {result.inserted}. Skipped (already in log): {result.skipped}. Not inserted (invalid: missing mode/frequency): {result.invalidCount}. {result.failed > 0 ? `Failed: ${result.failed}.` : ''}
           </p>
           {result.errorMessage && (
             <p className="upload-message upload-error upload-err-detail">{result.errorMessage}</p>
