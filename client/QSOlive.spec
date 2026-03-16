@@ -1,11 +1,27 @@
 # -*- mode: python ; coding: utf-8 -*-
+# Run this spec from the client/ directory:  pyinstaller --clean QSOlive.spec
 
+import os
+import sys
+# Spec may be exec'd with cwd != client; use dir of spec file when PyInstaller provides it
+try:
+    _client_dir = os.path.dirname(os.path.abspath(spec_file))
+except NameError:
+    _client_dir = os.getcwd()
+if _client_dir not in sys.path:
+    sys.path.insert(0, _client_dir)
+os.chdir(_client_dir)
+try:
+    import build_config  # creates build_branch.txt with current branch for exe to read when frozen
+except Exception:
+    with open(os.path.join(_client_dir, 'build_branch.txt'), 'w') as _f:
+        _f.write(os.environ.get('QSOLIVE_BUILD_BRANCH', 'main'))
 
 a = Analysis(
     ['qsolive_client.py'],
-    pathex=[],
+    pathex=[_client_dir],
     binaries=[],
-    datas=[],
+    datas=[('build_branch.txt', '.')],
     hiddenimports=['maidenhead'],
     hookspath=[],
     hooksconfig={},

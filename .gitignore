@@ -17,6 +17,7 @@ npm-debug.log
 .env.local
 client/config.json
 client/build_config.py
+client/build_branch.txt
 setup-prod.txt
 
 # IDEs

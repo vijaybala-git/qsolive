@@ -58,3 +58,10 @@ else:
     BUILTIN_SUPABASE_KEY = DEV_KEY
     BUILD_LABEL = "DEV"
     BUILD_BRANCH = _BUILD_BRANCH
+
+# Test: python build_config.example.py  (or build_config.py) to see resolved branch and label
+if __name__ == "__main__":
+    print("QSOLIVE_BUILD_BRANCH env:", repr(os.environ.get("QSOLIVE_BUILD_BRANCH")))
+    print("Resolved branch:", repr(_BUILD_BRANCH))
+    print("Build label:", BUILD_LABEL)
+    print("To build for PROD: git checkout prod  OR  set QSOLIVE_BUILD_BRANCH=prod")

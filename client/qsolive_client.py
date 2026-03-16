@@ -482,7 +482,9 @@ class QSOliveClient:
         if FROZEN:
             logger.info("Log file: %s", LOG_FILE_PATH)
             logger.info("Crash log (on error): %s", CRASH_FILE_PATH)
-        print(f"QSOlive [%s] branch=%s db=%s" % (env_label, branch, db_display))
+        print("=" * 50)
+        print(f"Build: {env_label}  |  branch: {branch}  |  DB: {db_display}")
+        print("=" * 50)
         if FROZEN:
             print("Log file:", LOG_FILE_PATH)
         
