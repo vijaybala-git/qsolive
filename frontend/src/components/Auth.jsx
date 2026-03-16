@@ -29,13 +29,19 @@ export default function Auth({ onSuccess }) {
     setLoading(true);
     setMessage(null);
     try {
+      const origin = window.location.origin;
+      // Pass redirect so confirmation email sends users back here (not localhost).
+      // This URL must be in Supabase Dashboard → Auth → URL Configuration → Redirect URLs.
+      const options = {
+        data: { full_name: fullName || undefined }
+      };
+      if (origin && !/^https?:\/\/localhost(:\d+)?$/i.test(origin)) {
+        options.emailRedirectTo = origin;
+      }
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: { full_name: fullName || undefined },
-          emailRedirectTo: window.location.origin
-        }
+        options
       });
       if (error) throw error;
       setMessage({ type: 'success', text: 'Check your email to confirm your account, or sign in if already confirmed.' });

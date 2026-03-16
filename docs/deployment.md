@@ -100,14 +100,19 @@ This guide describes how to deploy QSOlive in **development** and **production**
 - **5.2.1 Production env vars**
   - In Vercel, set **Production** env vars:
     - `VITE_SUPABASE_URL` = prod Supabase URL
-    - `VITE_SUPABASE_ANON_KEY` = prod anon key
-- **5.2.2 Domain**
+    - `VITE_SUPABASE_ANON_KEY` = prod anon key (use the **new** anon key from Dashboard → Settings → API if "Legacy API Key" is disabled).
+- **5.2.2 Supabase Auth (signup confirmation emails)**
+  - In Supabase Dashboard → **Authentication** → **URL Configuration**:
+    - **Site URL:** set to your production frontend URL (e.g. `https://your-app.vercel.app`).
+    - **Redirect URLs:** add your production URL (e.g. `https://your-app.vercel.app/**`). The confirmation email link uses this; if the URL is not listed, signup can fail or emails may not be sent.
+  - If confirmation emails do not arrive: check Auth → Logs for errors; ensure the new anon key is in Vercel when Legacy API Key is disabled; consider [custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp) for production (built-in has low rate limits).
+- **5.2.3 Domain**
   - *(To be filled: production URL, custom domain if any.)*
-- **5.2.3 Deploying 1.0 to prod**
+- **5.2.4 Deploying 1.0 to prod**
   - Tag release (e.g. `git tag v1.0.0`); deploy from that tag or from `main`.
   - In Vercel: Production deploy triggered by push to production branch or by “Deploy” from tag.
   - *(To be filled: exact steps – e.g. push tag, or merge to main.)*
-- **5.2.4 Post-deploy checks**
+- **5.2.5 Post-deploy checks**
   - [ ] Map, Settings, Club Admin, Help work against prod.
   - [ ] Confirm frontend is using prod Supabase (no dev data).
   - Rollback: redeploy previous tag or branch from Vercel dashboard.
