@@ -582,10 +582,10 @@ SELECT COUNT(*) FROM contacts;
 2. Copy the following (you'll need these for configuration):
    - **Project URL**: `https://hrhenmerdrqtfbzcaxrq.supabase.co` (This is your Project ID + .supabase.co)
    - **anon public key**: `eyJhbGc...` (safe to use in frontend)
-    eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhyaGVubWVyZHJxdGZiemNheHJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NzgzMjQsImV4cCI6MjA4NjM1NDMyNH0.8ArH3_ssvMw5cW8zFaPvc61KPlXCBRIU4tmsSBQGnqw
+    
 
    - **service_role key**: `eyJhbGc...` (keep secret, use in client)
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhyaGVubWVyZHJxdGZiemNheHJxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDc3ODMyNCwiZXhwIjoyMDg2MzU0MzI0fQ.wXVsi-L_ycCDSDsZ0OKsEs3aNRMHf1jnLNW2TJri9d8
+ 
 ## Step 6: Test API Access
 
 You can test the API directly from the SQL Editor or using curl:
