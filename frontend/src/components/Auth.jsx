@@ -32,7 +32,10 @@ export default function Auth({ onSuccess }) {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName || undefined } }
+        options: {
+          data: { full_name: fullName || undefined },
+          emailRedirectTo: window.location.origin
+        }
       });
       if (error) throw error;
       setMessage({ type: 'success', text: 'Check your email to confirm your account, or sign in if already confirmed.' });
