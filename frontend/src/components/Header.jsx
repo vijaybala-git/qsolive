@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import Auth from './Auth';
+import QSOLiveLogo from './QSOLiveLogo';
 
 export default function Header() {
   const [user, setUser] = useState(null);
@@ -86,8 +88,9 @@ export default function Header() {
   return (
     <div className="app-header">
       <div className="app-header-row">
-        <span className="app-header-dot" />
-        <h1>QSOLive</h1>
+        <Link to="/" className="app-header-logo-link" aria-label="QSOlive home">
+          <QSOLiveLogo width={280} variant="onDark" />
+        </Link>
       </div>
       {user ? (
         <div className="app-header-user">

@@ -44,20 +44,22 @@ body {
   gap: 0.75rem;
 }
 
-.app-header-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #eab308;
+.app-header-logo-link {
+  display: flex;
+  align-items: center;
+  line-height: 0;
+  text-decoration: none;
+  flex-shrink: 0;
+  max-width: min(100%, 320px);
 }
 
-.app-header h1 {
-  font-size: 1.875rem;
-  font-weight: 700;
-  color: #22c55e;
-  letter-spacing: 0.05em;
-  font-family: ui-monospace, monospace;
-  margin: 0;
+.app-header-logo-link svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.app-header-logo-link:hover {
+  filter: brightness(1.08);
 }
 
 .app-header-user {
